@@ -2,6 +2,7 @@ package platform
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -40,28 +41,88 @@ func TestGetGitBranch(t *testing.T) {
 }
 
 func TestGetGitBranch_RealRepo(t *testing.T) {
-	// Find the project root (which should be a git repo)
-	cwd, err := os.Getwd()
+	// Create a temporary git repository with a known branch
+	// This ensures consistent behavior regardless of CI environment (detached HEAD, etc.)
+	tmpDir, err := os.MkdirTemp("", "git-test-*")
 	if err != nil {
-		t.Skip("Could not get working directory")
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Initialize git repo
+	if err := runGitCommand(tmpDir, "init"); err != nil {
+		t.Skipf("git not available: %v", err)
 	}
 
-	// Walk up to find .git directory
-	for {
-		if _, err := os.Stat(filepath.Join(cwd, ".git")); err == nil {
-			break
-		}
-		parent := filepath.Dir(cwd)
-		if parent == cwd {
-			t.Skip("Not running in a git repository")
-		}
-		cwd = parent
+	// Configure git user for commit (required in CI)
+	_ = runGitCommand(tmpDir, "config", "user.email", "test@test.com")
+	_ = runGitCommand(tmpDir, "config", "user.name", "Test")
+
+	// Create initial commit (required to have a branch)
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	if err := runGitCommand(tmpDir, "add", "."); err != nil {
+		t.Fatalf("git add failed: %v", err)
+	}
+	if err := runGitCommand(tmpDir, "commit", "-m", "initial"); err != nil {
+		t.Fatalf("git commit failed: %v", err)
 	}
 
-	branch := GetGitBranch(cwd)
-	if branch == "" {
-		t.Error("Expected non-empty branch name for git repository")
+	// Rename branch to known name (handles both old 'master' and new 'main' defaults)
+	_ = runGitCommand(tmpDir, "branch", "-M", "test-branch")
+
+	branch := GetGitBranch(tmpDir)
+	if branch != "test-branch" {
+		t.Errorf("GetGitBranch() = %q, want %q", branch, "test-branch")
+	}
+}
+
+func TestGetGitBranch_DetachedHead(t *testing.T) {
+	// Test that detached HEAD returns empty string (as documented)
+	tmpDir, err := os.MkdirTemp("", "git-test-detached-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Initialize and create commits
+	if err := runGitCommand(tmpDir, "init"); err != nil {
+		t.Skipf("git not available: %v", err)
+	}
+	_ = runGitCommand(tmpDir, "config", "user.email", "test@test.com")
+	_ = runGitCommand(tmpDir, "config", "user.name", "Test")
+
+	// Create two commits so we can checkout a specific one
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("v1"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	_ = runGitCommand(tmpDir, "add", ".")
+	_ = runGitCommand(tmpDir, "commit", "-m", "first")
+
+	if err := os.WriteFile(testFile, []byte("v2"), 0644); err != nil {
+		t.Fatalf("Failed to update test file: %v", err)
+	}
+	_ = runGitCommand(tmpDir, "add", ".")
+	_ = runGitCommand(tmpDir, "commit", "-m", "second")
+
+	// Checkout first commit (detached HEAD)
+	if err := runGitCommand(tmpDir, "checkout", "HEAD~1"); err != nil {
+		t.Fatalf("git checkout failed: %v", err)
 	}
 
-	t.Logf("Current branch: %s", branch)
+	branch := GetGitBranch(tmpDir)
+	if branch != "" {
+		t.Errorf("GetGitBranch() in detached HEAD = %q, want empty string", branch)
+	}
+}
+
+// runGitCommand executes a git command in the specified directory
+func runGitCommand(dir string, args ...string) error {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	return cmd.Run()
 }

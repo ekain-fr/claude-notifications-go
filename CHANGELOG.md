@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.4] - 2025-12-31
+
+### Fixed
+- **CI tests now pass in GitHub Actions** 🧪
+  - `TestGetGitBranch_RealRepo` failed in CI due to detached HEAD from PR checkout
+  - Now uses isolated temporary git repository with known branch name
+  - Added `TestGetGitBranch_DetachedHead` to verify empty string for detached HEAD
+
 ## [1.6.3] - 2025-12-26
 
 ### Fixed
