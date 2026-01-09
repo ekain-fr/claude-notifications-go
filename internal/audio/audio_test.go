@@ -241,6 +241,9 @@ func TestPlayer_Play_RealMP3(t *testing.T) {
 	// This will actually play the sound (very quietly)
 	err = player.Play(mp3Path)
 	if err != nil {
+		if os.Getenv("CI") != "" {
+			t.Skipf("Skipping in CI (no audio device): %v", err)
+		}
 		t.Errorf("Play(MP3) error: %v", err)
 	}
 }
@@ -266,6 +269,9 @@ func TestPlayer_Play_RealAIFF(t *testing.T) {
 
 	err = player.Play(aiffPath)
 	if err != nil {
+		if os.Getenv("CI") != "" {
+			t.Skipf("Skipping in CI (no audio device): %v", err)
+		}
 		t.Errorf("Play(AIFF) error: %v", err)
 	}
 }
