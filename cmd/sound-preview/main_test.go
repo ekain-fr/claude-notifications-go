@@ -4,23 +4,35 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
-// TestMainHelp tests that the binary shows help when called without arguments
-func TestMainHelp(t *testing.T) {
-	// Build the binary first
+// buildTestBinary builds the sound-preview binary for testing
+// Returns the path to the built binary
+func buildTestBinary(t *testing.T) string {
+	t.Helper()
 	tmpDir := t.TempDir()
-	binPath := filepath.Join(tmpDir, "sound-preview")
+	binName := "sound-preview"
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
+	}
+	binPath := filepath.Join(tmpDir, binName)
 
 	cmd := exec.Command("go", "build", "-o", binPath, ".")
 	cmd.Dir = "."
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to build binary: %v", err)
 	}
+	return binPath
+}
+
+// TestMainHelp tests that the binary shows help when called without arguments
+func TestMainHelp(t *testing.T) {
+	binPath := buildTestBinary(t)
 
 	// Run without arguments - should show usage and exit with code 1
-	cmd = exec.Command(binPath)
+	cmd := exec.Command(binPath)
 	output, err := cmd.CombinedOutput()
 
 	// Should exit with error (no file provided)
@@ -36,16 +48,10 @@ func TestMainHelp(t *testing.T) {
 
 // TestMainWithNonExistentFile tests error handling for missing files
 func TestMainWithNonExistentFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	binPath := filepath.Join(tmpDir, "sound-preview")
-
-	cmd := exec.Command("go", "build", "-o", binPath, ".")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to build binary: %v", err)
-	}
+	binPath := buildTestBinary(t)
 
 	// Run with non-existent file
-	cmd = exec.Command(binPath, "/nonexistent/file.mp3")
+	cmd := exec.Command(binPath, "/nonexistent/file.mp3")
 	output, err := cmd.CombinedOutput()
 
 	if err == nil {
@@ -59,22 +65,17 @@ func TestMainWithNonExistentFile(t *testing.T) {
 
 // TestMainWithInvalidVolume tests volume validation
 func TestMainWithInvalidVolume(t *testing.T) {
+	binPath := buildTestBinary(t)
+
+	// Create a dummy file in a separate temp dir
 	tmpDir := t.TempDir()
-	binPath := filepath.Join(tmpDir, "sound-preview")
-
-	cmd := exec.Command("go", "build", "-o", binPath, ".")
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to build binary: %v", err)
-	}
-
-	// Create a dummy file
 	dummyFile := filepath.Join(tmpDir, "test.mp3")
 	if err := os.WriteFile(dummyFile, []byte{}, 0644); err != nil {
 		t.Fatalf("Failed to create dummy file: %v", err)
 	}
 
 	// Run with invalid volume
-	cmd = exec.Command(binPath, "--volume", "2.0", dummyFile)
+	cmd := exec.Command(binPath, "--volume", "2.0", dummyFile)
 	output, err := cmd.CombinedOutput()
 
 	if err == nil {
