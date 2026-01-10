@@ -10,7 +10,7 @@ import (
 	"github.com/777genius/claude-notifications/internal/logging"
 )
 
-const version = "1.6.6"
+const version = "1.7.0"
 
 func main() {
 	// Initialize global error handler with panic recovery

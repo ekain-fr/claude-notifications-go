@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-10
+
+### Added
+- **Audio device selection support** 🔊 (thanks @tkaufmann!)
+  - Route notification sounds to a specific audio output device
+  - New `audioDevice` config option in `notifications.desktop` section
+  - New `list-devices` CLI tool to enumerate available audio devices
+  - New `--device` flag for `sound-preview` utility
+
+### Changed
+- **Audio backend replacement** - Replaced `oto/v3` (beep/speaker) with `malgo` (miniaudio bindings)
+  - Better cross-platform audio support
+  - Native device enumeration and selection
+  - More reliable playback on all platforms
+
+### Fixed
+- **Windows CI test failures** - Fixed `.exe` extension handling in cross-platform tests
+- **Memory safety** - DeviceID now properly copied instead of storing pointer to freed memory
+- **Player state check** - Play() now returns error if player is already closed
+- **WaitGroup race condition** - Added `closing` flag to prevent race between Close() and playSoundAsync()
+- **CI test resilience** - Audio tests now skip gracefully in CI environments without audio backend
+
 ## [1.6.6] - 2026-01-10
 
 ### Fixed
