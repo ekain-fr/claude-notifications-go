@@ -54,14 +54,20 @@ detect_platform() {
             ;;
     esac
 
-    # Construct binary name
+    # Construct binary names
     if [ "$PLATFORM" = "windows" ]; then
         BINARY_NAME="claude-notifications-${PLATFORM}-${ARCH}.exe"
+        SOUND_PREVIEW_NAME="sound-preview-${PLATFORM}-${ARCH}.exe"
+        LIST_DEVICES_NAME="list-devices-${PLATFORM}-${ARCH}.exe"
     else
         BINARY_NAME="claude-notifications-${PLATFORM}-${ARCH}"
+        SOUND_PREVIEW_NAME="sound-preview-${PLATFORM}-${ARCH}"
+        LIST_DEVICES_NAME="list-devices-${PLATFORM}-${ARCH}"
     fi
 
     BINARY_PATH="${SCRIPT_DIR}/${BINARY_NAME}"
+    SOUND_PREVIEW_PATH="${SCRIPT_DIR}/${SOUND_PREVIEW_NAME}"
+    LIST_DEVICES_PATH="${SCRIPT_DIR}/${LIST_DEVICES_NAME}"
     CHECKSUMS_PATH="${SCRIPT_DIR}/.checksums.txt"
 }
 
@@ -106,6 +112,94 @@ check_existing() {
         return 0
     fi
     return 1
+}
+
+# Download a utility binary (sound-preview, list-devices)
+download_utility() {
+    local util_name="$1"
+    local util_path="$2"
+    local url="${RELEASE_URL}/${util_name}"
+
+    # Skip if already exists
+    if [ -f "$util_path" ]; then
+        echo -e "${GREEN}✓${NC} ${util_name} already installed"
+        return 0
+    fi
+
+    echo -e "${BLUE}📦 Downloading ${util_name}...${NC}"
+
+    if command -v curl &> /dev/null; then
+        if curl -fsSL "$url" -o "$util_path" 2>/dev/null; then
+            if [ -f "$util_path" ] && [ "$(get_file_size "$util_path")" -gt 100000 ]; then
+                chmod +x "$util_path" 2>/dev/null || true
+                echo -e "${GREEN}✓${NC} ${util_name} downloaded"
+                return 0
+            fi
+        fi
+    elif command -v wget &> /dev/null; then
+        if wget -q "$url" -O "$util_path" 2>/dev/null; then
+            if [ -f "$util_path" ] && [ "$(get_file_size "$util_path")" -gt 100000 ]; then
+                chmod +x "$util_path" 2>/dev/null || true
+                echo -e "${GREEN}✓${NC} ${util_name} downloaded"
+                return 0
+            fi
+        fi
+    fi
+
+    # Not critical - just warn
+    rm -f "$util_path" 2>/dev/null
+    echo -e "${YELLOW}⚠${NC} Could not download ${util_name} (optional utility)"
+    return 1
+}
+
+# Download utility binaries (sound-preview, list-devices)
+download_utilities() {
+    echo ""
+    echo -e "${BLUE}📦 Downloading utility binaries...${NC}"
+
+    download_utility "$SOUND_PREVIEW_NAME" "$SOUND_PREVIEW_PATH"
+    download_utility "$LIST_DEVICES_NAME" "$LIST_DEVICES_PATH"
+
+    # Create symlinks for utilities
+    create_utility_symlink "sound-preview" "$SOUND_PREVIEW_NAME" "$SOUND_PREVIEW_PATH"
+    create_utility_symlink "list-devices" "$LIST_DEVICES_NAME" "$LIST_DEVICES_PATH"
+}
+
+# Create symlink for a utility binary
+create_utility_symlink() {
+    local util_base="$1"
+    local util_name="$2"
+    local util_path="$3"
+
+    if [ ! -f "$util_path" ]; then
+        return 1
+    fi
+
+    local symlink_path="${SCRIPT_DIR}/${util_base}"
+
+    # Remove old symlink if exists
+    rm -f "$symlink_path" 2>/dev/null || true
+
+    if [ "$PLATFORM" = "windows" ]; then
+        # Windows: create .bat wrapper
+        local bat_path="${symlink_path}.bat"
+        cat > "$bat_path" << EOF
+@echo off
+setlocal
+set SCRIPT_DIR=%~dp0
+"%SCRIPT_DIR%${util_name}" %*
+EOF
+        return 0
+    fi
+
+    # Unix: create symlink
+    if ln -s "$util_name" "$symlink_path" 2>/dev/null; then
+        return 0
+    fi
+
+    # Fallback: copy
+    cp "$util_path" "$symlink_path" 2>/dev/null || true
+    chmod +x "$symlink_path" 2>/dev/null || true
 }
 
 # Download checksums file
@@ -475,13 +569,16 @@ main() {
         # Even if binary exists, ensure symlink is created
         create_symlink
 
+        # Download utility binaries (sound-preview, list-devices)
+        download_utilities
+
         # On macOS, also check terminal-notifier and create notification app
         if [ "$PLATFORM" = "darwin" ]; then
             download_terminal_notifier
             create_claude_notifications_app
         fi
 
-        echo -e "${GREEN}✓ No download needed${NC}"
+        echo -e "${GREEN}✓ Setup complete${NC}"
         echo ""
         return 0
     fi
@@ -528,6 +625,9 @@ main() {
     # Create symlink for hooks to use
     create_symlink
 
+    # Download utility binaries (sound-preview, list-devices)
+    download_utilities
+
     # On macOS, download terminal-notifier and create notification app
     if [ "$PLATFORM" = "darwin" ]; then
         download_terminal_notifier
@@ -544,9 +644,10 @@ main() {
     echo -e "${GREEN}========================================${NC}"
     echo ""
     echo -e "${GREEN}✓${NC} Binary downloaded: ${BOLD}${BINARY_NAME}${NC}"
+    echo -e "${GREEN}✓${NC} Utilities: sound-preview, list-devices"
     echo -e "${GREEN}✓${NC} Location: ${SCRIPT_DIR}/"
     echo -e "${GREEN}✓${NC} Checksum verified"
-    echo -e "${GREEN}✓${NC} Symlink created for hooks"
+    echo -e "${GREEN}✓${NC} Symlinks created"
     if [ "$PLATFORM" = "darwin" ]; then
         echo -e "${GREEN}✓${NC} terminal-notifier installed (click-to-focus)"
         echo -e "${GREEN}✓${NC} Claude icon configured for notifications"
