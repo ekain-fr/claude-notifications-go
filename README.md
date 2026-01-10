@@ -90,7 +90,7 @@ The binary is downloaded once and cached locally. You can re-run `/claude-notifi
 
 To update to the latest version:
 
-1. Run `/plugin` and select **Update plugin** → choose `claude-notifications-go`
+1. Run `/plugin`, select `claude-notifications-go` and choose **Update**
 2. Run `/claude-notifications-go:notifications-init` to download new binaries
 3. Restart Claude Code to apply hook changes
 
