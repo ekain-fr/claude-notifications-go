@@ -468,8 +468,8 @@ download_terminal_notifier() {
         return 1
     fi
 
-    # Extract
-    if ! unzip -q "$TEMP_ZIP" -d "${SCRIPT_DIR}/" 2>/dev/null; then
+    # Extract (-o to overwrite without prompting)
+    if ! unzip -o -q "$TEMP_ZIP" -d "${SCRIPT_DIR}/" 2>/dev/null; then
         echo -e "${YELLOW}⚠ Could not extract terminal-notifier${NC}"
         rm -f "$TEMP_ZIP"
         return 1
