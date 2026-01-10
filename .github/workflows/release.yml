@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           # macOS builds - use native runners (CGO required for malgo)
-          - os: macos-13
+          - os: macos-15-intel
             platform: darwin
             arch: amd64
             binary: claude-notifications-darwin-amd64
