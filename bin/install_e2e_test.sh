@@ -383,6 +383,13 @@ test_binary_name_format() {
 
 test_lock_created() {
     echo -e "\n${CYAN}▶ test_lock_created${NC}"
+
+    # Skip on Windows - trap/lock behavior differs in Git Bash
+    if is_windows; then
+        skip_test "Lock created" "trap behavior differs on Windows"
+        return
+    fi
+
     setup_test_dir
 
     # Run install with unreachable URL to fail fast
