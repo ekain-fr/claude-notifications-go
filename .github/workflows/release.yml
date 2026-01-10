@@ -16,8 +16,8 @@ jobs:
     strategy:
       matrix:
         include:
-          # macOS builds
-          - os: macos-latest
+          # macOS builds - use native runners (CGO required for malgo)
+          - os: macos-13
             platform: darwin
             arch: amd64
             binary: claude-notifications-darwin-amd64
@@ -26,7 +26,7 @@ jobs:
             arch: arm64
             binary: claude-notifications-darwin-arm64
 
-          # Linux builds
+          # Linux builds - use native runners
           - os: ubuntu-latest
             platform: linux
             arch: amd64
@@ -36,15 +36,11 @@ jobs:
             arch: arm64
             binary: claude-notifications-linux-arm64
 
-          # Windows builds
+          # Windows builds - amd64 only (arm64 not supported with CGO)
           - os: windows-latest
             platform: windows
             arch: amd64
             binary: claude-notifications-windows-amd64.exe
-          - os: windows-latest
-            platform: windows
-            arch: arm64
-            binary: claude-notifications-windows-arm64.exe
 
     steps:
       - name: Checkout code
@@ -66,8 +62,7 @@ jobs:
 
       - name: Build binaries
         env:
-          GOOS: ${{ matrix.platform }}
-          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: '1'
         shell: bash
         run: |
           mkdir -p dist
@@ -77,6 +72,10 @@ jobs:
           SOUND_PREVIEW_BINARY="${{ matrix.binary }}"
           SOUND_PREVIEW_BINARY="${SOUND_PREVIEW_BINARY//claude-notifications/sound-preview}"
           go build -ldflags="-s -w" -trimpath -o dist/$SOUND_PREVIEW_BINARY ./cmd/sound-preview
+          echo "Building list-devices..."
+          LIST_DEVICES_BINARY="${{ matrix.binary }}"
+          LIST_DEVICES_BINARY="${LIST_DEVICES_BINARY//claude-notifications/list-devices}"
+          go build -ldflags="-s -w" -trimpath -o dist/$LIST_DEVICES_BINARY ./cmd/list-devices
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
