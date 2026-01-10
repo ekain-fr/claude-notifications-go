@@ -108,6 +108,21 @@ is_windows() {
     [ "$(get_platform)" = "windows" ]
 }
 
+# Cross-platform timeout command
+# macOS doesn't have timeout by default, use gtimeout if available or run without timeout
+run_with_timeout() {
+    local seconds="$1"
+    shift
+    if command -v timeout &>/dev/null; then
+        timeout "$seconds" "$@"
+    elif command -v gtimeout &>/dev/null; then
+        gtimeout "$seconds" "$@"
+    else
+        # No timeout available, run without it
+        "$@"
+    fi
+}
+
 # Start mock server
 start_mock_server() {
     local port="${1:-$MOCK_PORT}"
@@ -346,7 +361,7 @@ test_platform_detection() {
 
     setup_test_dir
 
-    output=$(INSTALL_TARGET_DIR="$TEST_DIR" timeout 5 bash "$INSTALL_SCRIPT" 2>&1 || true)
+    output=$(INSTALL_TARGET_DIR="$TEST_DIR" run_with_timeout 5 bash "$INSTALL_SCRIPT" 2>&1 || true)
 
     assert_contains "$output" "Platform:.*$expected_platform" "Platform detected correctly"
     assert_contains "$output" "$expected_arch" "Architecture detected correctly"
@@ -358,7 +373,7 @@ test_binary_name_format() {
     echo -e "\n${CYAN}▶ test_binary_name_format${NC}"
     setup_test_dir
 
-    output=$(INSTALL_TARGET_DIR="$TEST_DIR" timeout 5 bash "$INSTALL_SCRIPT" 2>&1 || true)
+    output=$(INSTALL_TARGET_DIR="$TEST_DIR" run_with_timeout 5 bash "$INSTALL_SCRIPT" 2>&1 || true)
 
     # Binary name should contain platform and arch
     assert_contains "$output" "Binary:.*claude-notifications-" "Binary name has correct prefix"
@@ -372,7 +387,7 @@ test_lock_created() {
 
     # Run install with unreachable URL to fail fast
     RELEASE_URL="http://127.0.0.1:1" CHECKSUMS_URL="http://127.0.0.1:1/checksums.txt" \
-        INSTALL_TARGET_DIR="$TEST_DIR" timeout 10 bash "$INSTALL_SCRIPT" 2>&1 &
+        INSTALL_TARGET_DIR="$TEST_DIR" run_with_timeout 10 bash "$INSTALL_SCRIPT" 2>&1 &
     local pid=$!
     sleep 1
 
@@ -420,7 +435,7 @@ test_lock_cleanup_on_exit() {
 
     # Run install with unreachable URL to fail fast
     RELEASE_URL="http://127.0.0.1:1" CHECKSUMS_URL="http://127.0.0.1:1/checksums.txt" \
-        INSTALL_TARGET_DIR="$TEST_DIR" timeout 10 bash "$INSTALL_SCRIPT" 2>&1 || true
+        INSTALL_TARGET_DIR="$TEST_DIR" run_with_timeout 10 bash "$INSTALL_SCRIPT" 2>&1 || true
 
     # Lock should be cleaned up by trap
     assert_dir_not_exists "$TEST_DIR/.install.lock" "Lock cleaned up after exit"
@@ -456,7 +471,7 @@ test_install_target_dir() {
 
     # Use unreachable URL to fail fast and capture output
     output=$(RELEASE_URL="http://127.0.0.1:1" CHECKSUMS_URL="http://127.0.0.1:1/checksums.txt" \
-             INSTALL_TARGET_DIR="$custom_dir" timeout 10 bash "$INSTALL_SCRIPT" 2>&1 || true)
+             INSTALL_TARGET_DIR="$custom_dir" run_with_timeout 10 bash "$INSTALL_SCRIPT" 2>&1 || true)
 
     # The script should try to install to the custom directory
     # We verify by checking if it tried to access that directory
@@ -473,7 +488,7 @@ test_directory_auto_created() {
 
     # Use unreachable URL to fail fast
     output=$(RELEASE_URL="http://127.0.0.1:1" CHECKSUMS_URL="http://127.0.0.1:1/checksums.txt" \
-             INSTALL_TARGET_DIR="$nonexistent" timeout 10 bash "$INSTALL_SCRIPT" 2>&1 || true)
+             INSTALL_TARGET_DIR="$nonexistent" run_with_timeout 10 bash "$INSTALL_SCRIPT" 2>&1 || true)
 
     # Directory should be created automatically
     assert_dir_exists "$nonexistent" "Directory auto-created"
@@ -489,7 +504,7 @@ test_required_tools_curl_wget() {
     setup_test_dir
 
     # If we have curl or wget, the script should proceed past the check
-    output=$(INSTALL_TARGET_DIR="$TEST_DIR" timeout 5 bash "$INSTALL_SCRIPT" 2>&1 || true)
+    output=$(INSTALL_TARGET_DIR="$TEST_DIR" run_with_timeout 5 bash "$INSTALL_SCRIPT" 2>&1 || true)
 
     # Should not contain "Missing required tools: curl or wget"
     assert_not_contains "$output" "Missing required tools.*curl" "curl/wget available"
@@ -508,7 +523,7 @@ test_force_removes_binaries() {
     # Run with --force and use unreachable URL so it fails fast after cleanup
     output=$(RELEASE_URL="http://127.0.0.1:1" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true)
+             run_with_timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true)
 
     # Old files should be removed before download attempt
     assert_contains "$output" "removing old files" "Force cleanup message shown"
@@ -529,7 +544,7 @@ test_force_removes_symlinks() {
     # Run with --force and unreachable URL
     RELEASE_URL="http://127.0.0.1:1" \
     INSTALL_TARGET_DIR="$TEST_DIR" \
-    timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true
+    run_with_timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true
 
     # Symlinks should be removed
     if [ -L "$TEST_DIR/claude-notifications" ]; then
@@ -561,7 +576,7 @@ test_force_removes_apps_macos() {
     # Run with --force and unreachable URL
     RELEASE_URL="http://127.0.0.1:1" \
     INSTALL_TARGET_DIR="$TEST_DIR" \
-    timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true
+    run_with_timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true
 
     # Apps should be removed
     assert_dir_not_exists "$TEST_DIR/terminal-notifier.app" "terminal-notifier.app removed"
@@ -605,7 +620,7 @@ test_mock_download_success() {
              CHECKSUMS_URL="http://localhost:$MOCK_PORT/checksums.txt" \
              NOTIFIER_URL="http://localhost:$MOCK_PORT/valid.zip" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 60 bash "$INSTALL_SCRIPT" 2>&1)
+             run_with_timeout 60 bash "$INSTALL_SCRIPT" 2>&1)
     exit_code=$?
 
     assert_exit_code 0 $exit_code "Install completed successfully"
@@ -640,7 +655,7 @@ test_mock_download_404() {
     output=$(RELEASE_URL="http://localhost:$MOCK_PORT/404" \
              CHECKSUMS_URL="http://localhost:$MOCK_PORT/404/checksums.txt" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
+             run_with_timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
     exit_code=$?
     set -e
 
@@ -666,7 +681,7 @@ test_mock_download_500() {
     output=$(RELEASE_URL="http://localhost:$MOCK_PORT/500" \
              CHECKSUMS_URL="http://localhost:$MOCK_PORT/500/checksums.txt" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
+             run_with_timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
     exit_code=$?
     set -e
 
@@ -692,7 +707,7 @@ test_mock_file_too_small() {
     output=$(RELEASE_URL="http://localhost:$MOCK_PORT/small-file" \
              CHECKSUMS_URL="http://localhost:$MOCK_PORT/checksums.txt" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
+             run_with_timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
     exit_code=$?
     set -e
 
@@ -726,7 +741,7 @@ test_mock_checksum_mismatch() {
     output=$(RELEASE_URL="http://localhost:$MOCK_PORT" \
              CHECKSUMS_URL="http://localhost:$MOCK_PORT/checksums.txt" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
+             run_with_timeout 30 bash "$INSTALL_SCRIPT" 2>&1)
     exit_code=$?
     set -e
 
@@ -771,7 +786,7 @@ test_mock_zip_corrupted() {
              CHECKSUMS_URL="http://localhost:$MOCK_PORT/checksums.txt" \
              NOTIFIER_URL="http://localhost:$MOCK_PORT/corrupted.zip" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
-             timeout 30 bash "$INSTALL_SCRIPT" 2>&1 || true)
+             run_with_timeout 30 bash "$INSTALL_SCRIPT" 2>&1 || true)
 
     # Should warn about terminal-notifier but still succeed overall
     assert_contains "$output" "not a valid zip|Could not extract|extraction" "Corrupted zip detected"
