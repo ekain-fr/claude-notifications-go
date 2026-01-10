@@ -445,7 +445,7 @@ download_binary() {
             echo "$curl_error" | grep -iE "error|fail|refused|timeout|resolve|ssl|certificate|connect" | head -3 >&2
             if echo "$curl_error" | grep -qi "resolve"; then
                 echo -e "${YELLOW}→ DNS resolution failed. Check your internet connection.${NC}" >&2
-            elif echo "$curl_error" | grep -qi "ssl\|certificate"; then
+            elif echo "$curl_error" | grep -qiE "ssl|certificate"; then
                 echo -e "${YELLOW}→ SSL/TLS error. Your system certificates may be outdated.${NC}" >&2
             elif echo "$curl_error" | grep -qi "timeout"; then
                 echo -e "${YELLOW}→ Connection timed out. GitHub may be slow or blocked.${NC}" >&2
@@ -576,7 +576,7 @@ verify_executable() {
     fi
 
     # Verify output contains expected string
-    if ! echo "$output" | grep -qi "claude-notifications\|version"; then
+    if ! echo "$output" | grep -qiE "claude-notifications|version"; then
         echo -e "${RED}✗ Binary output unexpected${NC}" >&2
         echo -e "${RED}  Output: ${output}${NC}" >&2
         echo -e "${YELLOW}This doesn't appear to be the correct binary.${NC}" >&2
