@@ -36,6 +36,7 @@ bin/ClaudeNotifications.app/
 
 # E2E test fixtures (generated during tests)
 bin/test_fixtures/
+test_fixtures/
 
 # Coverage
 coverage.txt

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-01-10
+
+### Added
+- **Windows CI tests** - install.sh now tested on all 3 platforms (macOS, Linux, Windows)
+- **Binary execution verification** - installer now verifies downloaded binary actually runs (`--version` check)
+- **Network error diagnostics** - detailed hints for DNS, SSL, timeout, and firewall issues
+- **Graceful offline mode** - if GitHub is unreachable but binary exists, uses existing installation
+
+### Improved
+- **Cross-platform compatibility** for install.sh:
+  - Windows-compatible `ping` syntax (`-n/-w` instead of `-c/-W`)
+  - Portable temp directory (`${TMPDIR:-${TEMP:-/tmp}}`)
+  - Proper `.bat` wrapper creation on Windows
+  - Extended regex with `grep -E` for portability
+- **E2E test coverage** - 35+ tests covering offline, mock server, and real network scenarios
+- **Utility downloads are now non-blocking** - if sound-preview or list-devices fail, main install continues
+
+### Fixed
+- Fixed installer hanging when optional utility downloads fail
+- Fixed checksum verification for cross-platform builds
+
 ## [1.8.0] - 2026-01-10
 
 ### Added
