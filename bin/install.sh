@@ -21,6 +21,18 @@ else
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
+# Ensure target directory exists
+mkdir -p "$SCRIPT_DIR" 2>/dev/null || true
+
+# Lockfile to prevent parallel installations
+LOCKFILE="${SCRIPT_DIR}/.install.lock"
+
+# Network settings
+MAX_RETRIES=3
+RETRY_DELAY=2
+CURL_TIMEOUT=60
+WGET_TIMEOUT=60
+
 # GitHub repository
 REPO="777genius/claude-notifications-go"
 RELEASE_URL="https://github.com/${REPO}/releases/latest/download"
@@ -87,6 +99,115 @@ detect_platform() {
     CHECKSUMS_PATH="${SCRIPT_DIR}/.checksums.txt"
 }
 
+# Acquire lock to prevent parallel installations
+acquire_lock() {
+    # Use mkdir for atomic lock (works on all platforms)
+    if ! mkdir "$LOCKFILE" 2>/dev/null; then
+        # Check if lock is stale (older than 10 minutes)
+        if [ -d "$LOCKFILE" ]; then
+            local lock_age=0
+            if stat -f%m "$LOCKFILE" &>/dev/null; then
+                lock_age=$(($(date +%s) - $(stat -f%m "$LOCKFILE")))
+            elif stat -c%Y "$LOCKFILE" &>/dev/null; then
+                lock_age=$(($(date +%s) - $(stat -c%Y "$LOCKFILE")))
+            fi
+
+            if [ "$lock_age" -gt 600 ]; then
+                echo -e "${YELLOW}⚠ Removing stale lock (${lock_age}s old)${NC}"
+                rm -rf "$LOCKFILE"
+                mkdir "$LOCKFILE" 2>/dev/null || true
+            else
+                echo -e "${RED}✗ Another installation is in progress${NC}" >&2
+                echo -e "${YELLOW}If this is incorrect, remove: ${LOCKFILE}${NC}" >&2
+                return 1
+            fi
+        fi
+    fi
+
+    # Set trap to release lock on exit
+    trap 'rm -rf "$LOCKFILE" 2>/dev/null' EXIT INT TERM
+    return 0
+}
+
+# Check if we have write permissions
+check_write_permissions() {
+    if [ ! -d "$SCRIPT_DIR" ]; then
+        echo -e "${RED}✗ Directory does not exist: ${SCRIPT_DIR}${NC}" >&2
+        return 1
+    fi
+
+    if [ ! -w "$SCRIPT_DIR" ]; then
+        echo -e "${RED}✗ No write permission to: ${SCRIPT_DIR}${NC}" >&2
+        echo -e "${YELLOW}Try running with sudo or check directory permissions${NC}" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Check required tools
+check_required_tools() {
+    local missing_tools=()
+
+    # curl or wget required
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        missing_tools+=("curl or wget")
+    fi
+
+    # unzip required for terminal-notifier on macOS
+    if [ "$(uname -s | tr '[:upper:]' '[:lower:]')" = "darwin" ]; then
+        if ! command -v unzip &>/dev/null; then
+            missing_tools+=("unzip")
+        fi
+    fi
+
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        echo -e "${RED}✗ Missing required tools: ${missing_tools[*]}${NC}" >&2
+        return 1
+    fi
+
+    return 0
+}
+
+# Retry wrapper for network operations
+retry_download() {
+    local url="$1"
+    local output="$2"
+    local description="$3"
+    local attempt=1
+
+    while [ $attempt -le $MAX_RETRIES ]; do
+        if [ $attempt -gt 1 ]; then
+            echo -e "${YELLOW}Retry ${attempt}/${MAX_RETRIES} after ${RETRY_DELAY}s...${NC}"
+            sleep $RETRY_DELAY
+        fi
+
+        local temp_file="${output}.tmp.$$"
+        local success=false
+
+        if command -v curl &>/dev/null; then
+            if curl -fsSL --max-time $CURL_TIMEOUT "$url" -o "$temp_file" 2>/dev/null; then
+                success=true
+            fi
+        elif command -v wget &>/dev/null; then
+            if wget -q --timeout=$WGET_TIMEOUT "$url" -O "$temp_file" 2>/dev/null; then
+                success=true
+            fi
+        fi
+
+        if [ "$success" = true ] && [ -f "$temp_file" ] && [ "$(get_file_size "$temp_file")" -gt 0 ]; then
+            mv "$temp_file" "$output"
+            return 0
+        fi
+
+        rm -f "$temp_file" 2>/dev/null
+        attempt=$((attempt + 1))
+    done
+
+    echo -e "${RED}✗ Failed to download ${description} after ${MAX_RETRIES} attempts${NC}" >&2
+    return 1
+}
+
 # Get file size with multiple fallbacks
 get_file_size() {
     local file="$1"
@@ -123,11 +244,14 @@ check_github_availability() {
 # Check if binary already exists
 check_existing() {
     if [ "$FORCE_UPDATE" = true ]; then
-        echo -e "${BLUE}🔄 Force update requested, removing old binaries...${NC}"
+        echo -e "${BLUE}🔄 Force update requested, removing old files...${NC}"
         rm -f "$BINARY_PATH" "$SOUND_PREVIEW_PATH" "$LIST_DEVICES_PATH" 2>/dev/null
         # Remove symlinks (Unix) and .bat wrappers (Windows)
         rm -f "${SCRIPT_DIR}/claude-notifications" "${SCRIPT_DIR}/sound-preview" "${SCRIPT_DIR}/list-devices" 2>/dev/null
         rm -f "${SCRIPT_DIR}/claude-notifications.bat" "${SCRIPT_DIR}/sound-preview.bat" "${SCRIPT_DIR}/list-devices.bat" 2>/dev/null
+        # Remove macOS apps for clean reinstall
+        rm -rf "${SCRIPT_DIR}/terminal-notifier.app" "${SCRIPT_DIR}/ClaudeNotifications.app" 2>/dev/null
+        rm -f "${SCRIPT_DIR}/README.markdown" 2>/dev/null
         return 1
     fi
     if [ -f "$BINARY_PATH" ]; then
@@ -441,7 +565,7 @@ cleanup() {
 download_terminal_notifier() {
     local NOTIFIER_URL="https://github.com/julienXX/terminal-notifier/releases/download/2.0.0/terminal-notifier-2.0.0.zip"
     local NOTIFIER_APP="${SCRIPT_DIR}/terminal-notifier.app"
-    local TEMP_ZIP="/tmp/terminal-notifier-$$.zip"
+    local TEMP_ZIP="${TMPDIR:-/tmp}/terminal-notifier-$$.zip"
 
     # Check if already installed
     if [ -d "$NOTIFIER_APP" ]; then
@@ -452,24 +576,46 @@ download_terminal_notifier() {
     echo ""
     echo -e "${BLUE}📦 Installing terminal-notifier (click-to-focus support)...${NC}"
 
-    # Download
-    if command -v curl &> /dev/null; then
-        if ! curl -fsSL "$NOTIFIER_URL" -o "$TEMP_ZIP" 2>/dev/null; then
-            echo -e "${YELLOW}⚠ Could not download terminal-notifier (click-to-focus will be disabled)${NC}"
-            return 1
+    # Download with retry
+    local attempt=1
+    local downloaded=false
+
+    while [ $attempt -le $MAX_RETRIES ]; do
+        if [ $attempt -gt 1 ]; then
+            echo -e "${YELLOW}Retry ${attempt}/${MAX_RETRIES}...${NC}"
+            sleep $RETRY_DELAY
         fi
-    elif command -v wget &> /dev/null; then
-        if ! wget -q "$NOTIFIER_URL" -O "$TEMP_ZIP" 2>/dev/null; then
-            echo -e "${YELLOW}⚠ Could not download terminal-notifier (click-to-focus will be disabled)${NC}"
-            return 1
+
+        if command -v curl &>/dev/null; then
+            if curl -fsSL --max-time $CURL_TIMEOUT "$NOTIFIER_URL" -o "$TEMP_ZIP" 2>/dev/null; then
+                downloaded=true
+                break
+            fi
+        elif command -v wget &>/dev/null; then
+            if wget -q --timeout=$WGET_TIMEOUT "$NOTIFIER_URL" -O "$TEMP_ZIP" 2>/dev/null; then
+                downloaded=true
+                break
+            fi
         fi
-    else
-        echo -e "${YELLOW}⚠ curl or wget required for terminal-notifier${NC}"
+
+        attempt=$((attempt + 1))
+    done
+
+    if [ "$downloaded" != true ]; then
+        echo -e "${YELLOW}⚠ Could not download terminal-notifier (click-to-focus will be disabled)${NC}"
+        rm -f "$TEMP_ZIP" 2>/dev/null
+        return 1
+    fi
+
+    # Verify zip file is valid before extracting
+    if ! unzip -t "$TEMP_ZIP" &>/dev/null; then
+        echo -e "${YELLOW}⚠ Downloaded file is not a valid zip (click-to-focus will be disabled)${NC}"
+        rm -f "$TEMP_ZIP"
         return 1
     fi
 
     # Extract (-o to overwrite without prompting)
-    if ! unzip -o -q "$TEMP_ZIP" -d "${SCRIPT_DIR}/" 2>/dev/null; then
+    if ! unzip -o -q "$TEMP_ZIP" -d "${SCRIPT_DIR}/" 2>&1; then
         echo -e "${YELLOW}⚠ Could not extract terminal-notifier${NC}"
         rm -f "$TEMP_ZIP"
         return 1
@@ -478,12 +624,13 @@ download_terminal_notifier() {
     # Cleanup
     rm -f "$TEMP_ZIP"
 
-    # Verify
-    if [ -d "$NOTIFIER_APP" ]; then
+    # Verify extraction
+    if [ -d "$NOTIFIER_APP" ] && [ -x "$NOTIFIER_APP/Contents/MacOS/terminal-notifier" ]; then
         echo -e "${GREEN}✓${NC} terminal-notifier installed (click-to-focus enabled)"
         return 0
     else
-        echo -e "${YELLOW}⚠ terminal-notifier extraction failed${NC}"
+        echo -e "${YELLOW}⚠ terminal-notifier extraction incomplete${NC}"
+        rm -rf "$NOTIFIER_APP" 2>/dev/null
         return 1
     fi
 }
@@ -581,6 +728,19 @@ main() {
     echo -e "${BOLD} Claude Notifications - Binary Setup${NC}"
     echo -e "${BOLD}========================================${NC}"
     echo ""
+
+    # Pre-flight checks
+    if ! check_required_tools; then
+        exit 1
+    fi
+
+    if ! check_write_permissions; then
+        exit 1
+    fi
+
+    if ! acquire_lock; then
+        exit 1
+    fi
 
     # Detect platform
     detect_platform
