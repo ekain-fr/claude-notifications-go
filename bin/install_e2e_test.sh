@@ -1318,16 +1318,22 @@ test_hook_wrapper_real_concurrent_calls() {
     wait $pid1 $pid2 $pid3
 
     # Verify binary exists and is not corrupted
+    # Windows: check -f (file exists) since .bat files aren't executable
+    # Unix: check -x (executable)
     if is_windows; then
         BINARY="$TEST_DIR/claude-notifications.bat"
+        if [ -f "$BINARY" ]; then
+            pass_test "Concurrent calls don't corrupt installation"
+        else
+            fail_test "Concurrent calls don't corrupt installation" "Binary missing"
+        fi
     else
         BINARY="$TEST_DIR/claude-notifications"
-    fi
-
-    if [ -x "$BINARY" ]; then
-        pass_test "Concurrent calls don't corrupt installation"
-    else
-        fail_test "Concurrent calls don't corrupt installation" "Binary missing or not executable"
+        if [ -x "$BINARY" ]; then
+            pass_test "Concurrent calls don't corrupt installation"
+        else
+            fail_test "Concurrent calls don't corrupt installation" "Binary missing or not executable"
+        fi
     fi
 
     cleanup_test_dir
