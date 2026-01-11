@@ -1070,11 +1070,19 @@ test_hook_wrapper_passes_all_arguments() {
     setup_test_dir
 
     # Create a mock binary that echoes arguments
-    cat > "$TEST_DIR/claude-notifications" << 'MOCK_EOF'
+    # On Windows, create .bat file; on Unix, shell script
+    if is_windows; then
+        cat > "$TEST_DIR/claude-notifications.bat" << 'MOCK_EOF'
+@echo off
+echo ARGS:%*
+MOCK_EOF
+    else
+        cat > "$TEST_DIR/claude-notifications" << 'MOCK_EOF'
 #!/bin/sh
 echo "ARGS:$*"
 MOCK_EOF
-    chmod +x "$TEST_DIR/claude-notifications"
+        chmod +x "$TEST_DIR/claude-notifications"
+    fi
 
     # Copy wrapper
     cp "$SCRIPT_DIR/hook-wrapper.sh" "$TEST_DIR/"
