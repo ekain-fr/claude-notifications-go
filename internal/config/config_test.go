@@ -689,40 +689,40 @@ func TestIsStatusEnabled(t *testing.T) {
 
 func TestIsStatusDesktopEnabled(t *testing.T) {
 	tests := []struct {
-		name           string
-		globalEnabled  bool
-		statusEnabled  *bool
-		expected       bool
+		name          string
+		globalEnabled bool
+		statusEnabled *bool
+		expected      bool
 	}{
 		{
-			name:           "global enabled + status enabled (nil)",
-			globalEnabled:  true,
-			statusEnabled:  nil,
-			expected:       true,
+			name:          "global enabled + status enabled (nil)",
+			globalEnabled: true,
+			statusEnabled: nil,
+			expected:      true,
 		},
 		{
-			name:           "global enabled + status explicit true",
-			globalEnabled:  true,
-			statusEnabled:  boolPtr(true),
-			expected:       true,
+			name:          "global enabled + status explicit true",
+			globalEnabled: true,
+			statusEnabled: boolPtr(true),
+			expected:      true,
 		},
 		{
-			name:           "global enabled + status disabled",
-			globalEnabled:  true,
-			statusEnabled:  boolPtr(false),
-			expected:       false,
+			name:          "global enabled + status disabled",
+			globalEnabled: true,
+			statusEnabled: boolPtr(false),
+			expected:      false,
 		},
 		{
-			name:           "global disabled + status enabled",
-			globalEnabled:  false,
-			statusEnabled:  boolPtr(true),
-			expected:       false,
+			name:          "global disabled + status enabled",
+			globalEnabled: false,
+			statusEnabled: boolPtr(true),
+			expected:      false,
 		},
 		{
-			name:           "global disabled + status disabled",
-			globalEnabled:  false,
-			statusEnabled:  boolPtr(false),
-			expected:       false,
+			name:          "global disabled + status disabled",
+			globalEnabled: false,
+			statusEnabled: boolPtr(false),
+			expected:      false,
 		},
 	}
 
@@ -743,28 +743,28 @@ func TestIsStatusDesktopEnabled(t *testing.T) {
 
 func TestIsStatusWebhookEnabled(t *testing.T) {
 	tests := []struct {
-		name           string
-		globalEnabled  bool
-		statusEnabled  *bool
-		expected       bool
+		name          string
+		globalEnabled bool
+		statusEnabled *bool
+		expected      bool
 	}{
 		{
-			name:           "global enabled + status enabled (nil)",
-			globalEnabled:  true,
-			statusEnabled:  nil,
-			expected:       true,
+			name:          "global enabled + status enabled (nil)",
+			globalEnabled: true,
+			statusEnabled: nil,
+			expected:      true,
 		},
 		{
-			name:           "global enabled + status disabled",
-			globalEnabled:  true,
-			statusEnabled:  boolPtr(false),
-			expected:       false,
+			name:          "global enabled + status disabled",
+			globalEnabled: true,
+			statusEnabled: boolPtr(false),
+			expected:      false,
 		},
 		{
-			name:           "global disabled + status enabled",
-			globalEnabled:  false,
-			statusEnabled:  boolPtr(true),
-			expected:       false,
+			name:          "global disabled + status enabled",
+			globalEnabled: false,
+			statusEnabled: boolPtr(true),
+			expected:      false,
 		},
 	}
 
