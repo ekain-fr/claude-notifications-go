@@ -21,20 +21,13 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
     - [Install from GitHub](#install-from-github)
     - [Updating](#updating)
   - [Features](#features)
-    - [🖥️ Cross-Platform Support](#️-cross-platform-support)
-    - [🧠 Smart Detection](#-smart-detection)
-    - [🔔 Flexible Notifications](#-flexible-notifications)
-    - [🔊 Audio Customization](#-audio-customization)
-    - [🌐 Enterprise-Grade Webhooks](#-enterprise-grade-webhooks)
-    - [🛠️ Developer Experience](#️-developer-experience)
-    - [🤝 Plugin Compatibility](#-plugin-compatibility)
   - [Platform Support](#platform-support)
     - [Click-to-Focus (macOS & Linux)](#click-to-focus-macos--linux)
   - [Configuration](#configuration)
     - [Manual Configuration](#manual-configuration)
     - [Sound Options](#sound-options)
     - [Test Sound Playback](#test-sound-playback)
-  - [Usage](#usage)
+  - [Manual Testing](#manual-testing)
   - [Contributing](#contributing)
   - [Troubleshooting](#troubleshooting)
   - [Documentation](#documentation)
@@ -87,20 +80,14 @@ The binary is downloaded once and cached locally. You can re-run `/claude-notifi
 
 ### Updating
 
-To update to the latest version:
+Claude Code periodically checks for plugin updates and installs them automatically. Binaries are also updated automatically — on the next hook invocation, the wrapper detects the version mismatch and downloads the matching binary from GitHub Releases. Your `config.json` settings are preserved.
+
+To update manually:
 
 1. Run `/plugin`, select **Marketplaces**, choose `claude-notifications-go`, then select **Update marketplace**
 2. Select **Installed**, choose `claude-notifications-go`, then select **Update now**
 
-After that, binaries are updated automatically — on the next hook invocation, the wrapper detects the version mismatch between the installed binary and `plugin.json`, and downloads the matching binary from GitHub Releases. Your `config.json` settings are preserved during the update.
-
-If auto-update didn't work (e.g. no internet at the time), you can update the binary manually:
-
-```bash
-/claude-notifications-go:init
-```
-
-If hook definitions changed in the new version, restart Claude Code to apply them.
+If the binary auto-update didn't work (e.g. no internet at the time), run `/claude-notifications-go:init` to download it manually. If hook definitions changed in the new version, restart Claude Code to apply them.
 
 
 ## Features
@@ -112,10 +99,8 @@ If hook definitions changed in the new version, restart Claude Code to apply the
 
 ### 🧠 Smart Detection
 - **Operations count** File edits, file creates, ran commands + total time
-- **State machine analysis** with temporal locality for accurate status detection
 - **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error
 - **PreToolUse integration** for instant alerts when Claude asks questions or creates plans
-- Analyzes conversation context to avoid false positives
 
 ### 🔔 Flexible Notifications
 - **Desktop notifications** with custom icons and sounds
@@ -123,13 +108,11 @@ If hook definitions changed in the new version, restart Claude Code to apply the
 - **Git branch in title**: See current branch like `✅ Completed [bold-cat] main`
 - **Webhook integrations**: Slack, Discord, Telegram, Lark/Feishu, and custom endpoints
 - **Session names**: Friendly identifiers like `[bold-cat]` for multi-session tracking
-- **Cooldown system** to prevent notification spam
 
 ### 🔊 Audio Customization
 - **Multi-format support**: MP3, WAV, FLAC, OGG, AIFF
 - **Volume control**: 0-100% customizable volume
-- **Audio device selection**: Route notifications to a specific output device (e.g., "MacBook Pro-Lautsprecher")
-- **Built-in sounds**: Professional notification sounds included
+- **Audio device selection**: Route notifications to a specific output device
 - **System sounds**: Use macOS/Linux system sounds (optional)
 - **Sound preview**: Test sounds before choosing with `/claude-notifications-go:settings`
 
@@ -138,21 +121,7 @@ If hook definitions changed in the new version, restart Claude Code to apply the
 - **Circuit breaker** for fault tolerance
 - **Rate limiting** with token bucket algorithm
 - **Rich formatting** with platform-specific embeds/attachments
-- **Request tracing** and performance metrics
 - **→ [Complete Webhook Documentation](docs/webhooks/README.md)**
-
-### 🛠️ Developer Experience
-- **Interactive setup wizards**: `/claude-notifications-go:init` for binary setup, `/claude-notifications-go:settings` for configuration
-- **JSONL streaming parser** for efficient large file processing
-- **Comprehensive testing**: Unit tests with race detection
-- **Two-phase lock deduplication** prevents duplicate notifications
-- **Structured logging** to `notification-debug.log` for troubleshooting
-
-**Notes:**
-- **PreToolUse hooks** trigger instantly when Claude is about to use ExitPlanMode or AskUserQuestion tools
-- **Stop/SubagentStop hooks** analyze the conversation transcript using a state machine to determine the task status
-- **Notification hook** is triggered when Claude needs user input (permission dialogs, questions)
-- The state machine uses temporal locality (last 15 messages) and tool analysis to accurately detect task completion
 
 ### 🤝 Plugin Compatibility
 
@@ -193,44 +162,12 @@ To disable this behavior and receive notifications even in judge mode, set in `c
 
 ### Click-to-Focus (macOS & Linux)
 
-Clicking a notification will activate your terminal window - no more hunting for the right window!
+Clicking a notification activates your terminal window. Auto-detects terminal and platform:
 
-**Configuration** (in `config/config.json`):
-```json
-{
-  "notifications": {
-    "desktop": {
-      "clickToFocus": true,
-      "terminalBundleId": ""
-    }
-  }
-}
-```
+- **macOS** — via `terminal-notifier` with bundle ID detection
+- **Linux** — via D-Bus daemon with fallback chain (GNOME extension, Shell Eval, wlrctl, kdotool, xdotool)
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `clickToFocus` | `true` | Enable click-to-focus on macOS and Linux |
-| `terminalBundleId` | `""` | macOS only: override auto-detected terminal. Use bundle ID like `com.googlecode.iterm2` |
-
-#### macOS
-
-- Automatically detects your terminal (iTerm2, Warp, Terminal.app, kitty, Ghostty, WezTerm, Alacritty)
-- Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:init`)
-- Falls back to standard notifications if terminal-notifier is unavailable
-- Supported terminals: Terminal.app, iTerm2, Warp, kitty, Ghostty, WezTerm, Alacritty, Hyper, VS Code
-- To find your terminal's bundle ID: `osascript -e 'id of app "YourTerminal"'`
-
-#### Linux
-
-- Uses a background daemon with D-Bus for notification actions
-- Automatically detects your terminal and desktop environment
-- Supports multiple focus methods with fallback chain:
-  - **GNOME**: `activate-window-by-title` extension, Shell Eval, FocusApp (GNOME 45+)
-  - **KDE Plasma**: `kdotool`
-  - **Sway / wlroots**: `wlrctl`
-  - **X11** (XFCE, MATE, Cinnamon, i3, bspwm): `xdotool`
-- Supported terminals: GNOME Terminal, Konsole, Alacritty, kitty, WezTerm, Tilix, Terminator, XFCE4 Terminal, MATE Terminal, VS Code
-- Falls back to standard notifications if no focus tool is available
+Enabled by default. See **[Click-to-Focus Guide](docs/CLICK_TO_FOCUS.md)** for configuration and supported terminals.
 
 ## Configuration
 
@@ -376,9 +313,9 @@ bin/sound-preview --help
 **Volume flag:** Use `--volume` to control playback volume (0.0 to 1.0). Default is 1.0 (full volume).
 
 
-## Usage
+## Manual Testing
 
-The plugin is invoked automatically by Claude Code hooks. You can also test manually:
+The plugin is invoked automatically by Claude Code hooks. To test manually:
 
 ```bash
 # Test PreToolUse hook
@@ -404,6 +341,8 @@ See **[Troubleshooting Guide](docs/troubleshooting.md)** for common issues:
 ## Documentation
 
 - **[Architecture](docs/ARCHITECTURE.md)** - Plugin architecture, directory structure, data flow
+
+- **[Click-to-Focus](docs/CLICK_TO_FOCUS.md)** - Configuration, supported terminals, platform details
 
 - **[Volume Control Guide](docs/volume-control.md)** - Customize notification volume
   - Configure volume from 0% to 100%
