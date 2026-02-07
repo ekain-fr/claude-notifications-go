@@ -35,14 +35,9 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
     - [Manual Configuration](#manual-configuration)
     - [Sound Options](#sound-options)
     - [Test Sound Playback](#test-sound-playback)
-  - [Architecture](#architecture)
   - [Usage](#usage)
-  - [Development](#development)
-    - [Local installation for development](#local-installation-for-development)
-    - [Building binaries](#building-binaries)
-  - [Testing](#testing)
+  - [Contributing](#contributing)
   - [Troubleshooting](#troubleshooting)
-    - [Ubuntu 24.04: EXDEV cross-device link during plugin install](#ubuntu-2404-exdev-cross-device-link-during-plugin-install)
   - [Documentation](#documentation)
   - [License](#license)
 
@@ -397,35 +392,6 @@ bin/sound-preview --help
 **Volume flag:** Use `--volume` to control playback volume (0.0 to 1.0). Default is 1.0 (full volume).
 
 
-## Architecture
-
-```text
-cmd/
-  claude-notifications/     # CLI entry point
-  sound-preview/            # Sound preview utility
-  list-devices/             # List available audio output devices
-internal/
-  audio/                    # Audio playback with device selection (malgo)
-  config/                   # Configuration loading and validation
-  logging/                  # Structured logging to notification-debug.log
-  platform/                 # Cross-platform utilities (temp dirs, mtime, etc.)
-  analyzer/                 # JSONL parsing and state machine
-  state/                    # Per-session state and cooldown management
-  dedup/                    # Two-phase lock deduplication
-  notifier/                 # Desktop notifications and sound playback
-  webhook/                  # Webhook integrations (Slack/Discord/Telegram/Custom)
-  hooks/                    # Hook routing (PreToolUse/Stop/SubagentStop/Notification)
-  summary/                  # Message summarization and markdown cleanup
-  sessionname/              # Friendly session name generation ([bold-cat], etc.)
-pkg/
-  jsonl/                    # JSONL streaming parser
-commands/
-  init.md                   # Binary download wizard (alias: notifications-init.md)
-  settings.md               # Interactive settings configuration wizard (alias: notifications-settings.md)
-sounds/                     # Custom notification sounds (MP3)
-claude_icon.png             # Plugin icon for desktop notifications
-```
-
 ## Usage
 
 The plugin is invoked automatically by Claude Code hooks. You can also test manually:
@@ -440,107 +406,20 @@ echo '{"session_id":"test","transcript_path":"/path/to/transcript.jsonl"}' | \
   claude-notifications handle-hook Stop
 ```
 
-## Development
+## Contributing
 
-### Local installation for development
-
-```bash
-# 1. Clone repository
-git clone https://github.com/777genius/claude-notifications-go
-cd claude-notifications-go
-
-# 2. Build binary for your platform
-make build
-
-# 3. Add as local marketplace
-/plugin marketplace add .
-
-# 4. Install plugin
-/plugin install claude-notifications-go@local-dev
-
-# 5. Restart Claude Code for hooks to take effect
-
-# 6. Download binary and configure settings
-/claude-notifications-go:init
-/claude-notifications-go:settings
-```
-
-**Note:** For local development, build the binary with `make build` first. The `/claude-notifications-go:init` command will use your locally built binary if it exists, otherwise it will download from GitHub Releases.
-
-### Building binaries
-
-```bash
-# Run tests
-make test
-
-# Run tests with race detection
-make test-race
-
-# Generate coverage report
-make test-coverage
-
-# Build for all platforms
-make build-all
-
-# Rebuild and prepare for commit
-make rebuild-and-commit
-
-# Lint
-make lint
-```
-
-**Note:** GitHub Actions automatically rebuilds binaries when Go code changes are pushed.
-
-## Testing
-
-```bash
-# Unit tests
-go test ./internal/config -v
-go test ./internal/analyzer -v
-go test ./internal/dedup -v -race
-
-# Integration tests
-go test ./test -v
-
-# Specific test
-go test -run TestStateMachine ./internal/analyzer -v
-```
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for development setup, testing, building, and submitting changes.
 
 ## Troubleshooting
 
-### Ubuntu 24.04: EXDEV cross-device link during plugin install
+See **[Troubleshooting Guide](docs/troubleshooting.md)** for common issues:
 
-If you see an error like:
-
-```text
-EXDEV: cross-device link not permitted, rename '.../.claude/plugins/cache/...' -> '/tmp/claude-plugin-temp-...'
-```
-
-This is a **Claude Code installer limitation**: it tries to `rename()` a plugin directory from `~/.claude/...` into `/tmp/...`. On many Linux systems (including Ubuntu 24.04), `/tmp` is a different filesystem (often `tmpfs`), so cross-device `rename()` fails with `EXDEV`.
-
-**Workaround (recommended):** set a temp directory on the same filesystem as your `~/.claude` (usually under `$HOME`), then start Claude Code from that shell session and retry installation.
-
-```bash
-mkdir -p "$HOME/.claude/tmp"
-TMPDIR="$HOME/.claude/tmp" claude
-```
-
-Then run:
-
-```text
-/plugin install claude-notifications-go@claude-notifications-go
-```
-
-**Diagnostics (optional):**
-
-```bash
-df -T "$HOME" /tmp
-mount | grep -E ' on /tmp | on /home '
-```
-
-If `/tmp` shows `tmpfs` (or a different device) while `$HOME` is on `ext4/btrfs/...`, this explains the error.
+- **Ubuntu 24.04**: `EXDEV: cross-device link not permitted` during `/plugin install` (TMPDIR workaround)
+- **Windows**: install issues related to `%TEMP%` / `%TMP%` location
 
 ## Documentation
+
+- **[Architecture](docs/ARCHITECTURE.md)** - Plugin architecture, directory structure, data flow
 
 - **[Volume Control Guide](docs/volume-control.md)** - Customize notification volume
   - Configure volume from 0% to 100%

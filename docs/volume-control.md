@@ -304,4 +304,4 @@ Potential improvements:
 
 - [Interactive Sound Preview](interactive-sound-preview.md) - Preview sounds before choosing
 - [Webhook Documentation](webhooks/README.md) - Send notifications to external services
-- [Architecture](../ARCHITECTURE.md) - Plugin architecture overview
+- [Architecture](ARCHITECTURE.md) - Plugin architecture overview
