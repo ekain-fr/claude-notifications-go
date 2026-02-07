@@ -23,6 +23,7 @@ type NotificationsConfig struct {
 	SuppressQuestionAfterAnyNotificationSeconds int           `json:"suppressQuestionAfterAnyNotificationSeconds"`
 	NotifyOnSubagentStop                        bool          `json:"notifyOnSubagentStop"` // Send notifications when subagents (Task tool) complete, default: false
 	NotifyOnTextResponse                        *bool         `json:"notifyOnTextResponse"` // Send notifications for text-only responses (no tools), default: true
+	RespectJudgeMode                            *bool         `json:"respectJudgeMode"`     // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
 }
 
 // DesktopConfig represents desktop notification settings
@@ -310,6 +311,14 @@ func (c *Config) ShouldNotifyOnTextResponse() bool {
 		return true // Default: notify on text responses
 	}
 	return *c.Notifications.NotifyOnTextResponse
+}
+
+// ShouldRespectJudgeMode returns true if CLAUDE_HOOK_JUDGE_MODE=true env var should suppress notifications (default: true)
+func (c *Config) ShouldRespectJudgeMode() bool {
+	if c.Notifications.RespectJudgeMode == nil {
+		return true // Default: respect judge mode
+	}
+	return *c.Notifications.RespectJudgeMode
 }
 
 // IsStatusEnabled returns true if notifications for this status are enabled

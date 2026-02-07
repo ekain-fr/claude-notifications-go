@@ -83,7 +83,8 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 	// Skip notifications when running in background judge mode (e.g., double-shot-latte plugin)
 	// The CLAUDE_HOOK_JUDGE_MODE env var is set by plugins that spawn background Claude instances
 	// to evaluate context/decide on continuation - we don't want notifications from these
-	if os.Getenv("CLAUDE_HOOK_JUDGE_MODE") == "true" {
+	// Can be disabled via config: "respectJudgeMode": false
+	if h.cfg.ShouldRespectJudgeMode() && os.Getenv("CLAUDE_HOOK_JUDGE_MODE") == "true" {
 		return nil
 	}
 

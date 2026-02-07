@@ -1223,6 +1223,41 @@ func TestHandler_SendsNotificationsWhenJudgeModeFalse(t *testing.T) {
 	}
 }
 
+// TestHandler_IgnoresJudgeModeWhenRespectJudgeModeFalse verifies that notifications
+// are sent even when CLAUDE_HOOK_JUDGE_MODE=true if respectJudgeMode is false
+func TestHandler_IgnoresJudgeModeWhenRespectJudgeModeFalse(t *testing.T) {
+	respectJudgeMode := false
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop:          config.DesktopConfig{Enabled: true},
+			RespectJudgeMode: &respectJudgeMode,
+		},
+		Statuses: map[string]config.StatusInfo{
+			"plan_ready": {Title: "Plan Ready"},
+		},
+	}
+
+	handler, mockNotif, _ := newTestHandler(t, cfg)
+
+	// Set judge mode AFTER handler creation
+	t.Setenv("CLAUDE_HOOK_JUDGE_MODE", "true")
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID: "test-ignore-judge-mode",
+		ToolName:  "ExitPlanMode",
+		CWD:       "/test",
+	})
+
+	err := handler.HandleHook("PreToolUse", hookData)
+	if err != nil {
+		t.Fatalf("PreToolUse error: %v", err)
+	}
+
+	if !mockNotif.wasCalled() {
+		t.Error("expected notification when respectJudgeMode is false, even with CLAUDE_HOOK_JUDGE_MODE=true")
+	}
+}
+
 // TestHandleHookCallsWebhookShutdown verifies that HandleHook calls
 // webhookSvc.Shutdown() in defer to ensure graceful shutdown of async requests
 func TestHandleHookCallsWebhookShutdown(t *testing.T) {

@@ -194,6 +194,16 @@ Compatible with other Claude Code plugins that spawn background Claude instances
 
 If you're developing a plugin that spawns background Claude instances and want to suppress notifications, set `CLAUDE_HOOK_JUDGE_MODE=true` in the environment before invoking Claude.
 
+To disable this behavior and receive notifications even in judge mode, set in `config/config.json`:
+
+```json
+{
+  "notifications": {
+    "respectJudgeMode": false
+  }
+}
+```
+
 ## Platform Support
 
 **Supported platforms:**
