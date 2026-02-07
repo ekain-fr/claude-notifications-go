@@ -37,6 +37,7 @@ func New(cfg *config.Config) *Notifier {
 
 // SendDesktop sends a desktop notification using beeep (cross-platform)
 // On macOS with clickToFocus enabled, uses terminal-notifier for click-to-focus support
+// On Linux with clickToFocus enabled, uses background daemon for click-to-focus support
 func (n *Notifier) SendDesktop(status analyzer.Status, message string) error {
 	if !n.cfg.IsDesktopEnabled() {
 		logging.Debug("Desktop notifications disabled, skipping")
@@ -86,7 +87,19 @@ func (n *Notifier) SendDesktop(status analyzer.Status, message string) error {
 		}
 	}
 
-	// Standard path: beeep (Windows, Linux, macOS fallback)
+	// Linux: Try daemon for click-to-focus support
+	if platform.IsLinux() && n.cfg.Notifications.Desktop.ClickToFocus {
+		if err := sendLinuxNotification(title, cleanMessage, appIcon, n.cfg); err != nil {
+			logging.Warn("Linux daemon notification failed, falling back to beeep: %v", err)
+			// Fall through to beeep
+		} else {
+			logging.Debug("Desktop notification sent via Linux daemon: title=%s", title)
+			n.playSoundAsync(statusInfo.Sound)
+			return nil
+		}
+	}
+
+	// Standard path: beeep (Windows, macOS fallback, Linux fallback)
 	return n.sendWithBeeep(title, cleanMessage, appIcon, statusInfo.Sound)
 }
 

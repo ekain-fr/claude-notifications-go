@@ -1,8 +1,13 @@
-//go:build !darwin
+//go:build !darwin && !linux
 
 package notifier
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/777genius/claude-notifications/internal/config"
+	"github.com/gen2brain/beeep"
+)
 
 // GetTerminalBundleID returns empty string on non-macOS platforms
 // as terminal bundle IDs are a macOS-specific concept.
@@ -23,5 +28,26 @@ func IsTerminalNotifierAvailable() bool {
 
 // EnsureClaudeNotificationsApp is a no-op on non-macOS platforms.
 func EnsureClaudeNotificationsApp() error {
+	return nil
+}
+
+// sendLinuxNotification is a stub for non-Linux platforms.
+// On Windows, this falls back to beeep directly.
+func sendLinuxNotification(title, body, appIcon string, cfg *config.Config) error {
+	return beeep.Notify(title, body, appIcon)
+}
+
+// IsDaemonAvailable returns false on non-Linux platforms.
+func IsDaemonAvailable() bool {
+	return false
+}
+
+// StartDaemon is a no-op on non-Linux platforms.
+func StartDaemon() bool {
+	return false
+}
+
+// StopDaemon is a no-op on non-Linux platforms.
+func StopDaemon() error {
 	return nil
 }

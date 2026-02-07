@@ -1,0 +1,96 @@
+//go:build linux
+
+// ABOUTME: Linux-specific notification handling with click-to-focus support.
+// ABOUTME: Uses background daemon for persistent D-Bus connection when click-to-focus is enabled.
+package notifier
+
+import (
+	"fmt"
+
+	"github.com/777genius/claude-notifications/internal/config"
+	"github.com/777genius/claude-notifications/internal/daemon"
+	"github.com/777genius/claude-notifications/internal/logging"
+	"github.com/gen2brain/beeep"
+)
+
+// macOS stub functions - these are not used on Linux but required for compilation
+
+// GetTerminalBundleID returns empty string on Linux
+// as terminal bundle IDs are a macOS-specific concept.
+func GetTerminalBundleID(configOverride string) string {
+	return ""
+}
+
+// GetTerminalNotifierPath returns an error on Linux
+// as terminal-notifier is macOS-only.
+func GetTerminalNotifierPath() (string, error) {
+	return "", fmt.Errorf("terminal-notifier is only available on macOS")
+}
+
+// IsTerminalNotifierAvailable returns false on Linux.
+func IsTerminalNotifierAvailable() bool {
+	return false
+}
+
+// EnsureClaudeNotificationsApp is a no-op on Linux.
+func EnsureClaudeNotificationsApp() error {
+	return nil
+}
+
+// sendLinuxNotification sends a notification on Linux.
+// When clickToFocus is enabled, uses the daemon for click-to-focus support.
+// Falls back to beeep when daemon is unavailable.
+func sendLinuxNotification(title, body, appIcon string, cfg *config.Config) error {
+	// If click-to-focus is disabled, use beeep directly
+	if !cfg.Notifications.Desktop.ClickToFocus {
+		logging.Debug("Click-to-focus disabled, using beeep directly")
+		return beeep.Notify(title, body, appIcon)
+	}
+
+	// Try to use daemon for click-to-focus
+	if err := sendViaDaemon(title, body); err == nil {
+		logging.Debug("Notification sent via daemon with click-to-focus support")
+		return nil
+	} else {
+		logging.Debug("Daemon not available (%v), falling back to beeep", err)
+	}
+
+	// Fallback to beeep (no click-to-focus)
+	return beeep.Notify(title, body, appIcon)
+}
+
+// sendViaDaemon sends a notification via the background daemon.
+// Returns an error if daemon is not available or fails.
+func sendViaDaemon(title, body string) error {
+	// Start daemon on-demand (no-op if already running)
+	if !daemon.StartDaemonOnDemand() {
+		return daemon.ErrDaemonNotAvailable
+	}
+
+	// Create client and send notification
+	client, err := daemon.NewClient()
+	if err != nil {
+		return err
+	}
+
+	// Send notification with 30 second timeout, auto-detect terminal
+	_, err = client.SendNotification(title, body, "", 30)
+	return err
+}
+
+// IsDaemonAvailable checks if the notification daemon is available and running.
+// Exported for testing and status checks.
+func IsDaemonAvailable() bool {
+	return daemon.IsDaemonRunning()
+}
+
+// StartDaemon starts the notification daemon on-demand.
+// Returns true if daemon started successfully or was already running.
+func StartDaemon() bool {
+	return daemon.StartDaemonOnDemand()
+}
+
+// StopDaemon stops the running notification daemon.
+func StopDaemon() error {
+	return daemon.StopDaemon()
+}

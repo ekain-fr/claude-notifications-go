@@ -810,6 +810,138 @@ EXEC_EOF
     return 0
 }
 
+# Install GNOME activate-window-by-title extension for Linux click-to-focus
+install_gnome_activate_window_extension() {
+    local EXTENSION_ID=5021
+    local EXTENSION_UUID="activate-window-by-title@lucaswerkmeister.de"
+
+    # Check if GNOME Shell is available
+    if ! command -v gnome-shell &>/dev/null; then
+        echo -e "${YELLOW}⚠ Skipping GNOME extension (gnome-shell not found)${NC}"
+        return 1
+    fi
+
+    # Check if gnome-extensions CLI exists
+    if ! command -v gnome-extensions &>/dev/null; then
+        echo -e "${YELLOW}⚠ Skipping GNOME extension (gnome-extensions not found)${NC}"
+        return 1
+    fi
+
+    # Check if extension is already enabled
+    if gnome-extensions list --enabled 2>/dev/null | grep -q "$EXTENSION_UUID"; then
+        echo -e "${GREEN}✓${NC} GNOME activate-window extension already enabled"
+        return 0
+    fi
+
+    echo ""
+    echo -e "${BLUE}📦 Installing GNOME activate-window extension (click-to-focus support)...${NC}"
+
+    # Get GNOME Shell version
+    local gnome_version
+    gnome_version=$(gnome-shell --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' || true)
+
+    if [ -z "$gnome_version" ]; then
+        echo -e "${YELLOW}⚠ Could not detect GNOME Shell version (click-to-focus will be disabled)${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}   GNOME Shell version: ${gnome_version}${NC}"
+
+    # Query extensions.gnome.org for download URL
+    local ext_info=""
+    local attempt=1
+
+    while [ $attempt -le $MAX_RETRIES ]; do
+        if [ $attempt -gt 1 ]; then
+            echo -e "${YELLOW}Retry ${attempt}/${MAX_RETRIES}...${NC}"
+            sleep $RETRY_DELAY
+        fi
+
+        if command -v curl &>/dev/null; then
+            ext_info=$(curl -sf --max-time $CURL_TIMEOUT \
+                "https://extensions.gnome.org/extension-info/?pk=${EXTENSION_ID}&shell_version=${gnome_version}" 2>/dev/null) && break
+        elif command -v wget &>/dev/null; then
+            ext_info=$(wget -q --timeout=$WGET_TIMEOUT -O - \
+                "https://extensions.gnome.org/extension-info/?pk=${EXTENSION_ID}&shell_version=${gnome_version}" 2>/dev/null) && break
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    if [ -z "$ext_info" ]; then
+        echo -e "${YELLOW}⚠ Could not fetch extension info from extensions.gnome.org${NC}"
+        return 1
+    fi
+
+    # Extract download URL from JSON response
+    local download_url
+    download_url=$(echo "$ext_info" | sed -n 's/.*"download_url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || true)
+
+    if [ -z "$download_url" ]; then
+        echo -e "${YELLOW}⚠ No compatible extension version found for GNOME Shell ${gnome_version}${NC}"
+        return 1
+    fi
+
+    # Download extension zip
+    local temp_zip="${TMPDIR:-${TEMP:-/tmp}}/gnome-ext-$$.zip"
+
+    echo -e "${BLUE}   Downloading extension...${NC}"
+
+    local downloaded=false
+    attempt=1
+
+    while [ $attempt -le $MAX_RETRIES ]; do
+        if [ $attempt -gt 1 ]; then
+            echo -e "${YELLOW}Retry ${attempt}/${MAX_RETRIES}...${NC}"
+            sleep $RETRY_DELAY
+        fi
+
+        if command -v curl &>/dev/null; then
+            if curl -fsSL --max-time $CURL_TIMEOUT "https://extensions.gnome.org${download_url}" -o "$temp_zip" 2>/dev/null; then
+                downloaded=true
+                break
+            fi
+        elif command -v wget &>/dev/null; then
+            if wget -q --timeout=$WGET_TIMEOUT "https://extensions.gnome.org${download_url}" -O "$temp_zip" 2>/dev/null; then
+                downloaded=true
+                break
+            fi
+        fi
+
+        attempt=$((attempt + 1))
+    done
+
+    if [ "$downloaded" != true ]; then
+        echo -e "${YELLOW}⚠ Could not download extension (click-to-focus will be disabled)${NC}"
+        rm -f "$temp_zip" 2>/dev/null
+        return 1
+    fi
+
+    # Install using gnome-extensions
+    echo -e "${BLUE}   Installing extension...${NC}"
+
+    if ! gnome-extensions install --force "$temp_zip" 2>/dev/null; then
+        echo -e "${YELLOW}⚠ Could not install extension${NC}"
+        rm -f "$temp_zip"
+        return 1
+    fi
+
+    rm -f "$temp_zip"
+
+    # Enable the extension
+    echo -e "${BLUE}   Enabling extension...${NC}"
+
+    if gnome-extensions enable "$EXTENSION_UUID" 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} GNOME activate-window extension installed and enabled (click-to-focus)"
+        return 0
+    else
+        echo -e "${YELLOW}⚠ Extension installed but could not be enabled immediately${NC}"
+        echo -e "${YELLOW}  You may need to log out and log back in, then run:${NC}"
+        echo -e "${YELLOW}  gnome-extensions enable ${EXTENSION_UUID}${NC}"
+        return 1
+    fi
+}
+
 # Main installation flow
 main() {
     echo ""
@@ -850,6 +982,13 @@ main() {
             download_terminal_notifier
             # Icon app is optional - don't fail if icon not found
             create_claude_notifications_app || true
+        fi
+
+        # On Linux, also check GNOME activate-window extension
+        if [ "$PLATFORM" = "linux" ]; then
+            if install_gnome_activate_window_extension; then
+                GNOME_EXT_INSTALLED=true
+            fi
         fi
 
         echo -e "${GREEN}✓ Setup complete${NC}"
@@ -951,6 +1090,14 @@ main() {
         create_claude_notifications_app || true
     fi
 
+    # On Linux, install GNOME activate-window-by-title extension for click-to-focus
+    GNOME_EXT_INSTALLED=false
+    if [ "$PLATFORM" = "linux" ]; then
+        if install_gnome_activate_window_extension; then
+            GNOME_EXT_INSTALLED=true
+        fi
+    fi
+
     # Cleanup
     cleanup
 
@@ -968,6 +1115,13 @@ main() {
     if [ "$PLATFORM" = "darwin" ]; then
         echo -e "${GREEN}✓${NC} terminal-notifier installed (click-to-focus)"
         echo -e "${GREEN}✓${NC} Claude icon configured for notifications"
+    fi
+    if [ "$PLATFORM" = "linux" ]; then
+        if [ "$GNOME_EXT_INSTALLED" = true ]; then
+            echo -e "${GREEN}✓${NC} GNOME activate-window extension installed (click-to-focus)"
+        else
+            echo -e "${YELLOW}⚠${NC} GNOME extension not installed (click-to-focus requires manual setup)"
+        fi
     fi
     echo -e "${GREEN}✓${NC} Ready to use!"
     echo ""

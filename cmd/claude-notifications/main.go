@@ -37,6 +37,8 @@ func main() {
 			os.Exit(1)
 		}
 		handleHook(os.Args[2])
+	case "daemon", "--daemon":
+		runDaemon()
 	case "version", "--version", "-v":
 		fmt.Printf("claude-notifications v%s\n", version)
 	case "help", "--help", "-h":
@@ -109,12 +111,15 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  claude-notifications handle-hook <HookName>")
+	fmt.Println("  claude-notifications daemon")
 	fmt.Println("  claude-notifications version")
 	fmt.Println("  claude-notifications help")
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  handle-hook <HookName>  Handle a Claude Code hook event")
 	fmt.Println("                          HookName: PreToolUse, Stop, SubagentStop, Notification")
+	fmt.Println("  daemon                  Run the notification daemon (Linux only)")
+	fmt.Println("                          For click-to-focus support on desktop notifications")
 	fmt.Println("  version                 Show version information")
 	fmt.Println("  help                    Show this help message")
 	fmt.Println()
@@ -124,6 +129,9 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("  # Handle Stop hook")
 	fmt.Println("  echo '{\"session_id\":\"test\",\"transcript_path\":\"/path/to/transcript.jsonl\"}' | claude-notifications handle-hook Stop")
+	fmt.Println()
+	fmt.Println("  # Run notification daemon (Linux only, started automatically)")
+	fmt.Println("  claude-notifications daemon")
 	fmt.Println()
 	fmt.Println("Environment Variables:")
 	fmt.Println("  CLAUDE_PLUGIN_ROOT  Plugin root directory (auto-detected if not set)")

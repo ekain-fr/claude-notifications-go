@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/777genius/claude-notifications/internal/config"
 	"github.com/777genius/claude-notifications/internal/platform"
 )
 
@@ -181,5 +182,26 @@ func EnsureClaudeNotificationsApp() error {
 	// Register with Launch Services
 	exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appDir).Run()
 
+	return nil
+}
+
+// sendLinuxNotification is a stub for macOS.
+// On macOS, click-to-focus is handled via terminal-notifier.
+func sendLinuxNotification(title, body, appIcon string, cfg *config.Config) error {
+	return fmt.Errorf("Linux notifications not available on macOS")
+}
+
+// IsDaemonAvailable returns false on macOS (Linux daemon is not applicable).
+func IsDaemonAvailable() bool {
+	return false
+}
+
+// StartDaemon is a no-op on macOS.
+func StartDaemon() bool {
+	return false
+}
+
+// StopDaemon is a no-op on macOS.
+func StopDaemon() error {
 	return nil
 }
