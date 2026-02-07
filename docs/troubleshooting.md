@@ -48,4 +48,3 @@ If your temp directory is on a different drive than your user profile (or where 
 ### Fix
 
 Make sure `%TEMP%` and `%TMP%` point to a directory on the same drive as `%USERPROFILE%` (or where Claude stores its plugin directories), then restart your terminal/app.
-

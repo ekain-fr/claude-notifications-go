@@ -10,6 +10,8 @@
     "repository": "https://github.com/777genius/claude-notifications-go",
     "keywords": ["notifications", "alerts", "productivity", "go"],
     "commands": [
+        "./commands/init.md",
+        "./commands/settings.md",
         "./commands/notifications-init.md",
         "./commands/notifications-settings.md"
     ]

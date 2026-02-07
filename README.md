@@ -41,6 +41,8 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
     - [Local installation for development](#local-installation-for-development)
     - [Building binaries](#building-binaries)
   - [Testing](#testing)
+  - [Troubleshooting](#troubleshooting)
+    - [Ubuntu 24.04: EXDEV cross-device link during plugin install](#ubuntu-2404-exdev-cross-device-link-during-plugin-install)
   - [Documentation](#documentation)
   - [License](#license)
 
@@ -53,7 +55,7 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 | Question | ❓ | Claude has a question | PreToolUse hook (AskUserQuestion) OR Notification hook |
 | Plan Ready | 📋 | Plan ready for approval | PreToolUse hook (ExitPlanMode) |
 | Session Limit Reached | ⏱️ | Session limit reached | Stop/SubagentStop hooks (state machine detects "Session limit reached" text in last 3 assistant messages) |
-| API Error | 🔴 | API error detected (401, 400, 429, 500, 529, etc.) | Stop/SubagentStop hooks (state machine uses `isApiErrorMessage` flag from JSONL; distinguishes 401 auth errors from overloaded/rate-limit/server errors) |
+| API Error | 🔴 | API error detected (401 auth, 429 rate-limit, 500/529 server, connection errors) | Stop/SubagentStop hooks (state machine uses `isApiErrorMessage` flag from JSONL to detect API errors; distinguishes 401 auth errors from overloaded/rate-limit/server errors) |
 
 
 ## Installation
@@ -73,19 +75,21 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 /plugin install claude-notifications-go@claude-notifications-go
 # 3) Restart Claude Code
 # 4) Init
-/claude-notifications-go:notifications-init
+/claude-notifications-go:init
 
 # Optional
 # Configure sounds and settings
-/claude-notifications-go:notifications-settings
+/claude-notifications-go:settings
 ```
 
 **That's it!**
 
-1. `/claude-notifications-go:notifications-init` downloads the correct binary for your platform (macOS/Linux/Windows) from GitHub Releases
-2. `/claude-notifications-go:notifications-settings` guides you through sound configuration with an interactive wizard
+1. `/claude-notifications-go:init` downloads the correct binary for your platform (macOS/Linux/Windows) from GitHub Releases
+2. `/claude-notifications-go:settings` guides you through sound configuration with an interactive wizard
 
-The binary is downloaded once and cached locally. You can re-run `/claude-notifications-go:notifications-settings` anytime to reconfigure.
+The binary is downloaded once and cached locally. You can re-run `/claude-notifications-go:settings` anytime to reconfigure.
+
+> Having issues with installation? See [Troubleshooting](#troubleshooting).
 
 ### Troubleshooting: Ubuntu 24.04 `EXDEV: cross-device link not permitted` during `/plugin install`
 
@@ -125,7 +129,7 @@ To update to the latest version:
 
 1. Run `/plugin`, select **Marketplaces**, choose `claude-notifications-go`, then select **Update marketplace**
 2. Select **Installed**, choose `claude-notifications-go`, then select **Update now**
-3. Run `/claude-notifications-go:notifications-init` to download new binaries
+3. Run `/claude-notifications-go:init` to download new binaries
 4. Restart Claude Code to apply hook changes
 
 Your `config.json` settings will be preserved during the update.
@@ -141,7 +145,7 @@ Your `config.json` settings will be preserved during the update.
 ### 🧠 Smart Detection
 - **Operations count** File edits, file creates, ran commans + total time
 - **State machine analysis** with temporal locality for accurate status detection
-- **7 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error (401), API Error (overloaded/rate-limit/server)
+- **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error (401/429/500/529/connection)
 - **PreToolUse integration** for instant alerts when Claude asks questions or creates plans
 - Analyzes conversation context to avoid false positives
 
@@ -159,7 +163,7 @@ Your `config.json` settings will be preserved during the update.
 - **Audio device selection**: Route notifications to a specific output device (e.g., "MacBook Pro-Lautsprecher")
 - **Built-in sounds**: Professional notification sounds included
 - **System sounds**: Use macOS/Linux system sounds (optional)
-- **Sound preview**: Test sounds before choosing with `/claude-notifications-go:notifications-settings`
+- **Sound preview**: Test sounds before choosing with `/claude-notifications-go:settings`
 
 ### 🌐 Enterprise-Grade Webhooks
 - **Retry logic** with exponential backoff
@@ -170,7 +174,7 @@ Your `config.json` settings will be preserved during the update.
 - **→ [Complete Webhook Documentation](docs/webhooks/README.md)**
 
 ### 🛠️ Developer Experience
-- **Interactive setup wizards**: `/claude-notifications-go:notifications-init` for binary setup, `/claude-notifications-go:notifications-settings` for configuration
+- **Interactive setup wizards**: `/claude-notifications-go:init` for binary setup, `/claude-notifications-go:settings` for configuration
 - **JSONL streaming parser** for efficient large file processing
 - **Comprehensive testing**: Unit tests with race detection
 - **Two-phase lock deduplication** prevents duplicate notifications
@@ -215,7 +219,7 @@ On macOS, clicking a notification will activate your terminal window - no more h
 
 **How it works:**
 - Automatically detects your terminal (iTerm2, Warp, Terminal.app, kitty, Ghostty, WezTerm, Alacritty)
-- Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:notifications-init`)
+- Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:init`)
 - Falls back to standard notifications if terminal-notifier is unavailable
 
 **Configuration** (in `config/config.json`):
@@ -247,13 +251,13 @@ To find your terminal's bundle ID: `osascript -e 'id of app "YourTerminal"'`
 First, download the notification binary:
 
 ```
-/claude-notifications-go:notifications-init
+/claude-notifications-go:init
 ```
 
 Then configure your notification sounds:
 
 ```
-/claude-notifications-go:notifications-settings
+/claude-notifications-go:settings
 ```
 
 This will:
@@ -406,8 +410,8 @@ internal/
 pkg/
   jsonl/                    # JSONL streaming parser
 commands/
-  notifications-init.md     # Binary download wizard
-  notifications-settings.md # Interactive settings configuration wizard
+  init.md                   # Binary download wizard (alias: notifications-init.md)
+  settings.md               # Interactive settings configuration wizard (alias: notifications-settings.md)
 sounds/                     # Custom notification sounds (MP3)
 claude_icon.png             # Plugin icon for desktop notifications
 ```
@@ -447,11 +451,11 @@ make build
 # 5. Restart Claude Code for hooks to take effect
 
 # 6. Download binary and configure settings
-/claude-notifications-go:notifications-init
-/claude-notifications-go:notifications-settings
+/claude-notifications-go:init
+/claude-notifications-go:settings
 ```
 
-**Note:** For local development, build the binary with `make build` first. The `/claude-notifications-go:notifications-init` command will use your locally built binary if it exists, otherwise it will download from GitHub Releases.
+**Note:** For local development, build the binary with `make build` first. The `/claude-notifications-go:init` command will use your locally built binary if it exists, otherwise it will download from GitHub Releases.
 
 ### Building binaries
 
@@ -491,6 +495,40 @@ go test ./test -v
 # Specific test
 go test -run TestStateMachine ./internal/analyzer -v
 ```
+
+## Troubleshooting
+
+### Ubuntu 24.04: EXDEV cross-device link during plugin install
+
+If you see an error like:
+
+```text
+EXDEV: cross-device link not permitted, rename '.../.claude/plugins/cache/...' -> '/tmp/claude-plugin-temp-...'
+```
+
+This is a **Claude Code installer limitation**: it tries to `rename()` a plugin directory from `~/.claude/...` into `/tmp/...`. On many Linux systems (including Ubuntu 24.04), `/tmp` is a different filesystem (often `tmpfs`), so cross-device `rename()` fails with `EXDEV`.
+
+**Workaround (recommended):** set a temp directory on the same filesystem as your `~/.claude` (usually under `$HOME`), then start Claude Code from that shell session and retry installation.
+
+```bash
+mkdir -p "$HOME/.claude/tmp"
+TMPDIR="$HOME/.claude/tmp" claude
+```
+
+Then run:
+
+```text
+/plugin install claude-notifications-go@claude-notifications-go
+```
+
+**Diagnostics (optional):**
+
+```bash
+df -T "$HOME" /tmp
+mount | grep -E ' on /tmp | on /home '
+```
+
+If `/tmp` shows `tmpfs` (or a different device) while `$HOME` is on `ext4/btrfs/...`, this explains the error.
 
 ## Documentation
 
