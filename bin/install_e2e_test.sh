@@ -180,16 +180,31 @@ MOCK_EOF
     # Start server
     python3 "$MOCK_SERVER" "$port" "$FIXTURES_DIR" &
     MOCK_PID=$!
-    sleep 0.5
 
-    # Verify server is running
-    if ! kill -0 $MOCK_PID 2>/dev/null; then
-        echo "Failed to start mock server"
+    # Wait for server to be ready (up to 5 seconds)
+    local retries=0
+    local max_retries=50
+    while [ $retries -lt $max_retries ]; do
+        if ! kill -0 $MOCK_PID 2>/dev/null; then
+            echo "Failed to start mock server (process exited)"
+            return 1
+        fi
+        if curl -s -o /dev/null "http://127.0.0.1:${port}/" 2>/dev/null; then
+            break
+        fi
+        sleep 0.1
+        retries=$((retries + 1))
+    done
+
+    if [ $retries -ge $max_retries ]; then
+        echo "Mock server failed to respond after 5 seconds"
+        kill $MOCK_PID 2>/dev/null || true
+        MOCK_PID=""
         return 1
     fi
 
     if [ "$VERBOSE" = true ]; then
-        echo "  Mock server started on port $port (PID: $MOCK_PID)"
+        echo "  Mock server started on port $port (PID: $MOCK_PID, ready after $((retries * 100))ms)"
     fi
 }
 
