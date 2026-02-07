@@ -126,13 +126,7 @@ All three platform CIs must pass before merging.
 
 ## Releasing
 
-When releasing a new version, update the version in **3 files**:
-
-1. `cmd/claude-notifications/main.go` — constant `version`
-2. `.claude-plugin/plugin.json` — field `"version"`
-3. `.claude-plugin/marketplace.json` — field `"version"` (2 places)
-
-Also add an entry to `CHANGELOG.md`.
+See **[Release Checklist](docs/RELEASE.md)** for the full step-by-step guide.
 
 ## Code Style
 

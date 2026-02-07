@@ -49,8 +49,7 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 | Question | ❓ | Claude has a question | PreToolUse hook (AskUserQuestion) OR Notification hook |
 | Plan Ready | 📋 | Plan ready for approval | PreToolUse hook (ExitPlanMode) |
 | Session Limit Reached | ⏱️ | Session limit reached | Stop/SubagentStop hooks (state machine detects "Session limit reached" text in last 3 assistant messages) |
-| API Error: 401 | 🔴 | Authentication expired | Stop/SubagentStop hooks (state machine uses `isApiErrorMessage` flag + `error` field from JSONL to detect 401 auth errors) |
-| API Error: Overloaded | 🔴 | Rate limit, server error, connection error | Stop/SubagentStop hooks (state machine detects 429/500/529/connection errors via `isApiErrorMessage` flag) |
+| API Error | 🔴 | Authentication expired, rate limit, server error, connection error | Stop/SubagentStop hooks (state machine detects via `isApiErrorMessage` flag + `error` field from JSONL) |
 
 
 ## Installation
@@ -92,10 +91,16 @@ To update to the latest version:
 
 1. Run `/plugin`, select **Marketplaces**, choose `claude-notifications-go`, then select **Update marketplace**
 2. Select **Installed**, choose `claude-notifications-go`, then select **Update now**
-3. Run `/claude-notifications-go:init` to download new binaries
-4. Restart Claude Code to apply hook changes
 
-Your `config.json` settings will be preserved during the update.
+After that, binaries are updated automatically — on the next hook invocation, the wrapper detects the version mismatch between the installed binary and `plugin.json`, and downloads the matching binary from GitHub Releases. Your `config.json` settings are preserved during the update.
+
+If auto-update didn't work (e.g. no internet at the time), you can update the binary manually:
+
+```bash
+/claude-notifications-go:init
+```
+
+If hook definitions changed in the new version, restart Claude Code to apply them.
 
 
 ## Features
@@ -108,7 +113,7 @@ Your `config.json` settings will be preserved during the update.
 ### 🧠 Smart Detection
 - **Operations count** File edits, file creates, ran commands + total time
 - **State machine analysis** with temporal locality for accurate status detection
-- **7 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error (401), API Error (overloaded/rate-limit/server)
+- **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error
 - **PreToolUse integration** for instant alerts when Claude asks questions or creates plans
 - Analyzes conversation context to avoid false positives
 

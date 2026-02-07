@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-02-07
+
+### Changed
+- **Unified API Error notifications** — merged `api_error` (401) and `api_error_overloaded` into a single API Error type in documentation
+- **Updating section** — documented auto-update mechanism via `hook-wrapper.sh` with manual fallback
+- **Release checklist** — added [docs/RELEASE.md](docs/RELEASE.md) with version bump locations, auto-update explanation, and full release steps
+
+### Fixed
+- **install.sh** — `install_gnome_activate_window_extension()` now returns failure code when GNOME shell/extensions not found or extension couldn't be enabled ([#19](https://github.com/777genius/claude-notifications-go/pull/19))
+
 ## [1.14.0] - 2026-01-16
 
 ### Added
