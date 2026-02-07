@@ -6,7 +6,7 @@
         "name": "777genius",
         "email": "[email protected]"
     },
-    "license": "MIT",
+    "license": "GPL-3.0",
     "repository": "https://github.com/777genius/claude-notifications-go",
     "keywords": ["notifications", "alerts", "productivity", "go"],
     "commands": [

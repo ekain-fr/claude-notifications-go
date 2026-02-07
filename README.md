@@ -29,9 +29,8 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
     - [🛠️ Developer Experience](#️-developer-experience)
     - [🤝 Plugin Compatibility](#-plugin-compatibility)
   - [Platform Support](#platform-support)
-    - [macOS Click-to-Focus](#macos-click-to-focus)
-  - [Quick Start](#quick-start)
-    - [Interactive Setup (Recommended)](#interactive-setup-recommended)
+    - [Click-to-Focus (macOS & Linux)](#click-to-focus-macos--linux)
+  - [Configuration](#configuration)
     - [Manual Configuration](#manual-configuration)
     - [Sound Options](#sound-options)
     - [Test Sound Playback](#test-sound-playback)
@@ -50,7 +49,8 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 | Question | ❓ | Claude has a question | PreToolUse hook (AskUserQuestion) OR Notification hook |
 | Plan Ready | 📋 | Plan ready for approval | PreToolUse hook (ExitPlanMode) |
 | Session Limit Reached | ⏱️ | Session limit reached | Stop/SubagentStop hooks (state machine detects "Session limit reached" text in last 3 assistant messages) |
-| API Error | 🔴 | API error detected (401 auth, 429 rate-limit, 500/529 server, connection errors) | Stop/SubagentStop hooks (state machine uses `isApiErrorMessage` flag from JSONL to detect API errors; distinguishes 401 auth errors from overloaded/rate-limit/server errors) |
+| API Error: 401 | 🔴 | Authentication expired | Stop/SubagentStop hooks (state machine uses `isApiErrorMessage` flag + `error` field from JSONL to detect 401 auth errors) |
+| API Error: Overloaded | 🔴 | Rate limit, server error, connection error | Stop/SubagentStop hooks (state machine detects 429/500/529/connection errors via `isApiErrorMessage` flag) |
 
 
 ## Installation
@@ -86,38 +86,6 @@ The binary is downloaded once and cached locally. You can re-run `/claude-notifi
 
 > Having issues with installation? See [Troubleshooting](#troubleshooting).
 
-### Troubleshooting: Ubuntu 24.04 `EXDEV: cross-device link not permitted` during `/plugin install`
-
-If you see an error like:
-
-```text
-EXDEV: cross-device link not permitted, rename '.../.claude/plugins/cache/...' -> '/tmp/claude-plugin-temp-...'
-```
-
-This is a **Claude Code installer limitation**: it tries to `rename()` a plugin directory from `~/.claude/...` into `/tmp/...`. On many Linux systems (including Ubuntu 24.04), `/tmp` is a different filesystem (often `tmpfs`), so cross-device `rename()` fails with `EXDEV`.
-
-**Workaround (recommended):** set a temp directory on the same filesystem as your `~/.claude` (usually under `$HOME`), then start Claude Code from that shell session and retry installation.
-
-```bash
-mkdir -p "$HOME/.claude/tmp"
-TMPDIR="$HOME/.claude/tmp" claude
-```
-
-Then run:
-
-```text
-/plugin install claude-notifications-go@claude-notifications-go
-```
-
-**Diagnostics (optional):**
-
-```bash
-df -T "$HOME" /tmp
-mount | grep -E ' on /tmp | on /home '
-```
-
-If `/tmp` shows `tmpfs` (or a different device) while `$HOME` is on `ext4/btrfs/...`, this explains the error.
-
 ### Updating
 
 To update to the latest version:
@@ -138,15 +106,15 @@ Your `config.json` settings will be preserved during the update.
 - Pre-built binaries included - no compilation needed
 
 ### 🧠 Smart Detection
-- **Operations count** File edits, file creates, ran commans + total time
+- **Operations count** File edits, file creates, ran commands + total time
 - **State machine analysis** with temporal locality for accurate status detection
-- **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error (401/429/500/529/connection)
+- **7 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error (401), API Error (overloaded/rate-limit/server)
 - **PreToolUse integration** for instant alerts when Claude asks questions or creates plans
 - Analyzes conversation context to avoid false positives
 
 ### 🔔 Flexible Notifications
 - **Desktop notifications** with custom icons and sounds
-- **Click-to-focus** (macOS): Click notification to activate your terminal window
+- **Click-to-focus** (macOS, Linux): Click notification to activate your terminal window
 - **Git branch in title**: See current branch like `✅ Completed [bold-cat] main`
 - **Webhook integrations**: Slack, Discord, Telegram, Lark/Feishu, and custom endpoints
 - **Session names**: Friendly identifiers like `[bold-cat]` for multi-session tracking
@@ -218,14 +186,9 @@ To disable this behavior and receive notifications even in judge mode, set in `c
 - MP3/WAV/OGG/FLAC audio playback via native Windows APIs
 - System sounds not accessible - use built-in MP3s or custom files
 
-### macOS Click-to-Focus
+### Click-to-Focus (macOS & Linux)
 
-On macOS, clicking a notification will activate your terminal window - no more hunting for the right window!
-
-**How it works:**
-- Automatically detects your terminal (iTerm2, Warp, Terminal.app, kitty, Ghostty, WezTerm, Alacritty)
-- Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:init`)
-- Falls back to standard notifications if terminal-notifier is unavailable
+Clicking a notification will activate your terminal window - no more hunting for the right window!
 
 **Configuration** (in `config/config.json`):
 ```json
@@ -241,41 +204,32 @@ On macOS, clicking a notification will activate your terminal window - no more h
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `clickToFocus` | `true` | Enable click-to-focus on macOS |
-| `terminalBundleId` | `""` | Override auto-detected terminal. Use bundle ID like `com.googlecode.iterm2` |
+| `clickToFocus` | `true` | Enable click-to-focus on macOS and Linux |
+| `terminalBundleId` | `""` | macOS only: override auto-detected terminal. Use bundle ID like `com.googlecode.iterm2` |
 
-**Supported terminals (auto-detected):**
-- Terminal.app, iTerm2, Warp, kitty, Ghostty, WezTerm, Alacritty, Hyper, VS Code
+#### macOS
 
-To find your terminal's bundle ID: `osascript -e 'id of app "YourTerminal"'`
+- Automatically detects your terminal (iTerm2, Warp, Terminal.app, kitty, Ghostty, WezTerm, Alacritty)
+- Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:init`)
+- Falls back to standard notifications if terminal-notifier is unavailable
+- Supported terminals: Terminal.app, iTerm2, Warp, kitty, Ghostty, WezTerm, Alacritty, Hyper, VS Code
+- To find your terminal's bundle ID: `osascript -e 'id of app "YourTerminal"'`
 
-## Quick Start
+#### Linux
 
-### Interactive Setup (Recommended)
+- Uses a background daemon with D-Bus for notification actions
+- Automatically detects your terminal and desktop environment
+- Supports multiple focus methods with fallback chain:
+  - **GNOME**: `activate-window-by-title` extension, Shell Eval, FocusApp (GNOME 45+)
+  - **KDE Plasma**: `kdotool`
+  - **Sway / wlroots**: `wlrctl`
+  - **X11** (XFCE, MATE, Cinnamon, i3, bspwm): `xdotool`
+- Supported terminals: GNOME Terminal, Konsole, Alacritty, kitty, WezTerm, Tilix, Terminator, XFCE4 Terminal, MATE Terminal, VS Code
+- Falls back to standard notifications if no focus tool is available
 
-First, download the notification binary:
+## Configuration
 
-```
-/claude-notifications-go:init
-```
-
-Then configure your notification sounds:
-
-```
-/claude-notifications-go:settings
-```
-
-This will:
-- ✅ Show available built-in and system sounds
-- 🔊 Let you preview sounds before choosing
-- 📝 Create config.json with your preferences
-- ✅ Test your setup when complete
-
-**Features:**
-- Preview sounds: Type `"play Glass"` or `"preview task-complete"`
-- Choose from built-in MP3s or system sounds (macOS/Linux)
-- Configure webhooks (optional)
-- Interactive questions with AskUserQuestion tool
+Run `/claude-notifications-go:settings` to configure sounds, volume, webhooks, and other options via an interactive wizard. You can re-run it anytime to reconfigure.
 
 ### Manual Configuration
 
@@ -289,41 +243,66 @@ Alternatively, edit `config/config.json` directly:
       "sound": true,
       "volume": 1.0,
       "audioDevice": "",
+      "clickToFocus": true,
+      "terminalBundleId": "",
       "appIcon": "${CLAUDE_PLUGIN_ROOT}/claude_icon.png"
     },
     "webhook": {
       "enabled": false,
       "preset": "slack",
-      "url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+      "url": "",
       "chat_id": "",
       "format": "json",
       "headers": {}
     },
-    "suppressQuestionAfterTaskCompleteSeconds": 12
+    "suppressQuestionAfterTaskCompleteSeconds": 12,
+    "suppressQuestionAfterAnyNotificationSeconds": 12,
+    "notifyOnSubagentStop": false,
+    "notifyOnTextResponse": true,
+    "respectJudgeMode": true
   },
   "statuses": {
     "task_complete": {
-      "title": "✅ Task Completed",
-      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/task-complete.mp3",
-      "keywords": ["completed", "done", "finished"]
+      "title": "✅ Completed",
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/task-complete.mp3"
     },
-    "plan_ready": {
-      "title": "📋 Plan Ready for Review",
-      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/plan-ready.mp3",
-      "keywords": ["plan", "strategy"]
+    "review_complete": {
+      "title": "🔍 Review",
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/review-complete.mp3"
     },
     "question": {
-      "title": "❓ Claude Has Questions",
-      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3",
-      "keywords": ["question", "clarify"]
+      "title": "❓ Question",
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
+    },
+    "plan_ready": {
+      "title": "📋 Plan",
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/plan-ready.mp3"
     },
     "session_limit_reached": {
       "title": "⏱️ Session Limit Reached",
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
+    },
+    "api_error": {
+      "title": "🔴 API Error: 401",
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
+    },
+    "api_error_overloaded": {
+      "title": "🔴 API Error",
       "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
     }
   }
 }
 ```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `notifyOnSubagentStop` | `false` | Send notifications when subagents (Task tool) complete |
+| `notifyOnTextResponse` | `true` | Send notifications for text-only responses (no tool usage) |
+| `respectJudgeMode` | `true` | Honor `CLAUDE_HOOK_JUDGE_MODE=true` env var to suppress notifications |
+| `suppressQuestionAfterTaskCompleteSeconds` | `12` | Suppress question notifications for N seconds after task complete |
+| `suppressQuestionAfterAnyNotificationSeconds` | `12` | Suppress question notifications for N seconds after any notification |
+
+Each status can be individually disabled by adding `"enabled": false`.
 
 ### Sound Options
 
