@@ -57,6 +57,38 @@ The `release.yml` workflow triggers on tag push and builds binaries for all plat
 
 Verify at: https://github.com/777genius/claude-notifications-go/releases
 
+## 6. Update release description
+
+The auto-generated release description is minimal. Edit it with a human-readable summary:
+
+```bash
+gh release edit vX.Y.Z --notes "$(cat <<'NOTES_EOF'
+## Bug Fixes
+
+### Title ([#N](link))
+Description of what was broken and how it was fixed.
+
+## New Features
+
+### Title ([#N](link))
+Description of what was added and why.
+
+---
+
+**Full Changelog**: https://github.com/777genius/claude-notifications-go/compare/vPREV...vX.Y.Z
+NOTES_EOF
+)"
+```
+
+## 7. Notify relevant issues/PRs
+
+Comment on fixed issues and merged PRs with a link to the release:
+
+```bash
+gh issue comment N --body "Fixed in [vX.Y.Z](https://github.com/777genius/claude-notifications-go/releases/tag/vX.Y.Z)."
+gh pr comment N --body "Released in [vX.Y.Z](https://github.com/777genius/claude-notifications-go/releases/tag/vX.Y.Z)."
+```
+
 ## How auto-update works
 
 Users don't need to manually download binaries after a plugin update:
