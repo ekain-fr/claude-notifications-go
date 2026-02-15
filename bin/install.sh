@@ -505,11 +505,14 @@ verify_checksum() {
     fi
 
     # Calculate actual checksum
+    # Note: On Windows (MSYS2/Git Bash/Cygwin), sha256sum prefixes output with \
+    # when the file path contains backslashes. awk sub() strips this prefix.
+    # This is safe because SHA-256 hashes are hex-only [0-9a-f] and never contain \.
     local actual_sum=""
     if command -v shasum &> /dev/null; then
-        actual_sum=$(shasum -a 256 "$BINARY_PATH" 2>/dev/null | awk '{print $1}')
+        actual_sum=$(shasum -a 256 "$BINARY_PATH" 2>/dev/null | awk '{sub(/^\\/, "", $1); print $1}')
     elif command -v sha256sum &> /dev/null; then
-        actual_sum=$(sha256sum "$BINARY_PATH" 2>/dev/null | awk '{print $1}')
+        actual_sum=$(sha256sum "$BINARY_PATH" 2>/dev/null | awk '{sub(/^\\/, "", $1); print $1}')
     else
         echo -e "${YELLOW}⚠ sha256sum not available (skipping checksum)${NC}"
         return 0
