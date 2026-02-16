@@ -64,10 +64,14 @@ curl -fsSL https://raw.githubusercontent.com/777genius/claude-notifications-go/m
 
 Then restart Claude Code and optionally run `/claude-notifications-go:settings` to configure sounds.
 
+The binary is downloaded once and cached locally. You can re-run `/claude-notifications-go:settings` anytime to reconfigure.
+
+> If the bootstrap script doesn't work for your environment, use the [Manual Install](#manual-install) below.
+
 ### Manual Install
 
 <details>
-<summary>Step-by-step installation</summary>
+<summary>Step-by-step installation (if bootstrap doesn't work)</summary>
 
 ```bash
 # 1) Add marketplace
@@ -75,22 +79,13 @@ Then restart Claude Code and optionally run `/claude-notifications-go:settings` 
 # 2) Install plugin
 /plugin install claude-notifications-go@claude-notifications-go
 # 3) Restart Claude Code
-# 4) Init
+# 4) Download binary
 /claude-notifications-go:init
-
-# Optional
-# Configure sounds and settings
+# 5) (Optional) Configure sounds and settings
 /claude-notifications-go:settings
 ```
 
 </details>
-
-**That's it!**
-
-1. `/claude-notifications-go:init` downloads the correct binary for your platform (macOS/Linux/Windows) from GitHub Releases
-2. `/claude-notifications-go:settings` guides you through sound configuration with an interactive wizard
-
-The binary is downloaded once and cached locally. You can re-run `/claude-notifications-go:settings` anytime to reconfigure.
 
 > Having issues with installation? See [Troubleshooting](#troubleshooting).
 

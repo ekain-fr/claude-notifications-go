@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-02-16
+
+### Added
+- **One-command bootstrap installer** — `curl -fsSL .../bootstrap.sh | bash` handles marketplace setup, plugin install, and binary download in a single command
+- **`error.mp3` sound** — dedicated error alert sound for API errors and session limit notifications (replaces reused `question.mp3`)
+
+### Changed
+- **Session names** — simplified from two-word `bold-cat` to single-word `cat` format for cleaner notification titles
+- **Notification title format** — session ID moved after branch name: `✅ Completed main [cat]` instead of `✅ Completed [bold-cat] main`
+- **README installation section** — bootstrap method is now primary, manual install moved to collapsible fallback
+
 ## [1.16.0] - 2026-02-16
 
 ### Added
