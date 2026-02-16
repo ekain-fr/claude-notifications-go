@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-02-16
+
+### Added
+- **Terminal bell for tab indicators** 🔔 ([#28](https://github.com/777genius/claude-notifications-go/pull/28), thanks @retr0h!)
+  - Sends BEL character (`\a`) to trigger terminal tab indicators (Ghostty tab highlight, tmux window bell flag)
+  - Works independently of desktop notifications — bell fires even when desktop notifications are disabled
+  - New `terminalBell` config option (default: `true`)
+  - Cross-platform: `/dev/tty` on Unix, `os.Stdout` on Windows
+  - Graceful degradation: silently skipped if TTY unavailable (Docker, CI, piped environments)
+- **`list-sounds` CLI utility** — lists all available notification sound files ([#23](https://github.com/777genius/claude-notifications-go/issues/23))
+- **`/sounds` skill command** — interactive sound browser with preview from Claude Code
+
+### Changed
+- Updated notification sound files for plan readiness and review completion statuses
+
 ## [1.15.1] - 2026-02-15
 
 ### Added
