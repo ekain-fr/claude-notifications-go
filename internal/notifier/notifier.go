@@ -59,12 +59,12 @@ func (n *Notifier) SendDesktop(status analyzer.Status, message string) error {
 	// Format: "[session-name|branch] actual message" or "[session-name] actual message"
 	sessionName, gitBranch, cleanMessage := extractSessionInfo(message)
 
-	// Build proper title with session name and git branch
-	// Format: "✅ Completed [brave-ocean] main" or "✅ Completed [brave-ocean]"
+	// Build proper title with git branch and session name
+	// Format: "✅ Completed main [peak]" or "✅ Completed [peak]"
 	title := statusInfo.Title
 	if sessionName != "" {
 		if gitBranch != "" {
-			title = fmt.Sprintf("%s [%s] %s", title, sessionName, gitBranch)
+			title = fmt.Sprintf("%s %s [%s]", title, gitBranch, sessionName)
 		} else {
 			title = fmt.Sprintf("%s [%s]", title, sessionName)
 		}

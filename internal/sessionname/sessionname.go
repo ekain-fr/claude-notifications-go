@@ -26,37 +26,38 @@ var nouns = []string{
 	"forest", "canyon", "valley", "peak", "storm",
 }
 
-// GenerateSessionName generates a friendly name from a session ID (UUID).
-// Returns a deterministic name like "bold-cat" or "swift-eagle".
+// GenerateSessionName generates a friendly single-word name from a session ID (UUID).
+// Returns a deterministic name like "cat" or "eagle".
 //
 // Args:
 //   - sessionID: UUID string (e.g., "73b5e210-ec1a-4294-96e4-c2aecb2e1063")
 //
 // Returns:
-//   - Friendly name string (e.g., "bold-cat")
+//   - Friendly name string (e.g., "peak")
 func GenerateSessionName(sessionID string) string {
-	// Return "unknown-session" if no session ID
+	// Return "unknown" if no session ID
 	if sessionID == "" || sessionID == "unknown" {
-		return "unknown-session"
+		return "unknown"
 	}
 
 	// Remove dashes and convert to lowercase
 	cleanID := strings.ToLower(strings.ReplaceAll(sessionID, "-", ""))
 
-	// Get first 8 chars for adjective seed, next 8 for noun seed
-	if len(cleanID) < 16 {
+	// Use first 8 hex chars as seed for word selection
+	if len(cleanID) < 8 {
 		// Fallback for short IDs
-		return "unknown-session"
+		return "unknown"
 	}
 
-	adjSeed := cleanID[0:8]
-	nounSeed := cleanID[8:16]
+	seed := cleanID[0:8]
+
+	// Combine adjectives and nouns into a single pool for more variety
+	allWords := append(adjectives, nouns...)
 
 	// Convert hex to decimal for array indexing
-	adjIndex := hexToInt(adjSeed) % len(adjectives)
-	nounIndex := hexToInt(nounSeed) % len(nouns)
+	index := hexToInt(seed) % len(allWords)
 
-	return fmt.Sprintf("%s-%s", adjectives[adjIndex], nouns[nounIndex])
+	return allWords[index]
 }
 
 // hexToInt converts hex string to int (takes first 6 characters for safety)

@@ -15,27 +15,27 @@ func TestGenerateSessionName(t *testing.T) {
 		{
 			name:      "Valid UUID",
 			sessionID: "73b5e210-ec1a-4294-96e4-c2aecb2e1063",
-			expected:  "zesty-peak", // Deterministic based on hash
+			expected:  "zesty", // Deterministic based on hash
 		},
 		{
 			name:      "Different UUID",
 			sessionID: "12345678-1234-1234-1234-123456789abc",
-			expected:  "brave-deer", // Different deterministic result
+			expected:  "bird", // Different deterministic result
 		},
 		{
 			name:      "Empty session ID",
 			sessionID: "",
-			expected:  "unknown-session",
+			expected:  "unknown",
 		},
 		{
 			name:      "Unknown session ID",
 			sessionID: "unknown",
-			expected:  "unknown-session",
+			expected:  "unknown",
 		},
 		{
 			name:      "Short session ID",
 			sessionID: "short",
-			expected:  "unknown-session",
+			expected:  "unknown",
 		},
 	}
 
@@ -64,8 +64,8 @@ func TestGenerateSessionNameFormat(t *testing.T) {
 	sessionID := "73b5e210-ec1a-4294-96e4-c2aecb2e1063"
 	name := GenerateSessionName(sessionID)
 
-	// Should be in format "adjective-noun"
-	assert.Contains(t, name, "-")
+	// Should be a single word (adjectivenoun)
+	assert.NotContains(t, name, "-")
 	assert.NotEmpty(t, name)
 }
 

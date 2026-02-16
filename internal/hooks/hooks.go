@@ -357,7 +357,7 @@ func (h *Handler) sendNotifications(status analyzer.Status, message, sessionID, 
 	gitBranch := platform.GetGitBranch(cwd)
 	folderName := filepath.Base(cwd)
 
-	// Format: "[session-name|branch folder] message" or "[session-name folder] message"
+	// Format: "[sessionname|branch folder] message" or "[sessionname folder] message"
 	var enhancedMessage string
 	if gitBranch != "" {
 		enhancedMessage = fmt.Sprintf("[%s|%s %s] %s", sessionName, gitBranch, folderName, message)

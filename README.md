@@ -121,9 +121,9 @@ If the binary auto-update didn't work (e.g. no internet at the time), run `/clau
 ### 🔔 Flexible Notifications
 - **Desktop notifications** with custom icons and sounds
 - **Click-to-focus** (macOS, Linux): Click notification to activate your terminal window
-- **Git branch in title**: See current branch like `✅ Completed [bold-cat] main`
+- **Git branch in title**: See current branch like `✅ Completed main [cat]`
 - **Webhook integrations**: Slack, Discord, Telegram, Lark/Feishu, and custom endpoints
-- **Session names**: Friendly identifiers like `[bold-cat]` for multi-session tracking
+- **Session names**: Friendly identifiers like `[cat]` for multi-session tracking
 
 ### 🔊 Audio Customization
 - **Multi-format support**: MP3, WAV, FLAC, OGG, AIFF
