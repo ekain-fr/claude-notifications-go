@@ -109,6 +109,18 @@ install_plugin() {
     echo ""
     echo -e "${BLUE}📦 Installing plugin...${NC}"
 
+    # Remember old version directories before clearing cache.
+    # After install, we create symlinks from old versions to the new one
+    # so that the running Claude Code instance can still find hook-wrapper.sh
+    # at the old path (it caches the path in memory until restart).
+    local version_dir="${CACHE_DIR}/${MARKETPLACE_NAME}"
+    local old_versions=()
+    if [ -d "$version_dir" ]; then
+        for d in "$version_dir"/*/; do
+            [ -d "$d" ] && old_versions+=("$(basename "$d")")
+        done
+    fi
+
     # Clear plugin cache to work around update bug (#19197)
     if [ -n "$CACHE_DIR" ] && [ "$CACHE_DIR" != "/" ] && [ -d "$CACHE_DIR" ]; then
         echo -e "${BLUE}  Clearing plugin cache...${NC}"
@@ -125,6 +137,24 @@ install_plugin() {
             echo -e "${RED}✗ Plugin install failed${NC}" >&2
             echo -e "${YELLOW}Output: ${output}${NC}" >&2
             exit 1
+        fi
+    fi
+
+    # Create symlinks from old version dirs to the new one so running
+    # Claude Code instances don't break before restart
+    if [ -d "$version_dir" ]; then
+        local new_version=""
+        for d in "$version_dir"/*/; do
+            [ -d "$d" ] && new_version="$(basename "$d")" && break
+        done
+
+        if [ -n "$new_version" ]; then
+            for old_ver in "${old_versions[@]}"; do
+                if [ "$old_ver" != "$new_version" ] && [ ! -e "$version_dir/$old_ver" ]; then
+                    ln -s "$new_version" "$version_dir/$old_ver" 2>/dev/null || true
+                    echo -e "${BLUE}  Symlink: ${old_ver} → ${new_version} (for running session)${NC}"
+                fi
+            done
         fi
     fi
 }
