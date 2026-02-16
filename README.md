@@ -238,15 +238,15 @@ Alternatively, edit `config/config.json` directly:
     },
     "session_limit_reached": {
       "title": "⏱️ Session Limit Reached",
-      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/error.mp3"
     },
     "api_error": {
       "title": "🔴 API Error: 401",
-      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/error.mp3"
     },
     "api_error_overloaded": {
       "title": "🔴 API Error",
-      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3"
+      "sound": "${CLAUDE_PLUGIN_ROOT}/sounds/error.mp3"
     }
   }
 }
@@ -269,6 +269,7 @@ Each status can be individually disabled by adding `"enabled": false`.
 - `${CLAUDE_PLUGIN_ROOT}/sounds/review-complete.mp3`
 - `${CLAUDE_PLUGIN_ROOT}/sounds/question.mp3`
 - `${CLAUDE_PLUGIN_ROOT}/sounds/plan-ready.mp3`
+- `${CLAUDE_PLUGIN_ROOT}/sounds/error.mp3`
 
 **System sounds:**
 - macOS: `/System/Library/Sounds/Glass.aiff`, `/System/Library/Sounds/Hero.aiff`, etc.

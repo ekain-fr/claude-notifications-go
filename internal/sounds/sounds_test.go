@@ -11,8 +11,8 @@ func TestListBuiltIn(t *testing.T) {
 		IncludeSystem:  false,
 	})
 
-	if len(sounds) != 4 {
-		t.Fatalf("expected 4 built-in sounds, got %d", len(sounds))
+	if len(sounds) != 5 {
+		t.Fatalf("expected 5 built-in sounds, got %d", len(sounds))
 	}
 
 	expected := map[string]bool{
@@ -20,6 +20,7 @@ func TestListBuiltIn(t *testing.T) {
 		"review-complete": false,
 		"question":        false,
 		"plan-ready":      false,
+		"error":           false,
 	}
 
 	for _, s := range sounds {

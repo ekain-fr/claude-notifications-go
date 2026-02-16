@@ -35,6 +35,7 @@ var descriptions = map[string]string{
 	"review-complete": "Gentle notification tone",
 	"question":        "Attention-grabbing sound",
 	"plan-ready":      "Professional planning tone",
+	"error":           "Error alert sound",
 	// macOS system sounds
 	"Glass":     "Crisp, clean chime",
 	"Hero":      "Triumphant fanfare",
