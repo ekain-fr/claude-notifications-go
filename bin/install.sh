@@ -87,15 +87,18 @@ detect_platform() {
         BINARY_NAME="claude-notifications-${PLATFORM}-${ARCH}.exe"
         SOUND_PREVIEW_NAME="sound-preview-${PLATFORM}-${ARCH}.exe"
         LIST_DEVICES_NAME="list-devices-${PLATFORM}-${ARCH}.exe"
+        LIST_SOUNDS_NAME="list-sounds-${PLATFORM}-${ARCH}.exe"
     else
         BINARY_NAME="claude-notifications-${PLATFORM}-${ARCH}"
         SOUND_PREVIEW_NAME="sound-preview-${PLATFORM}-${ARCH}"
         LIST_DEVICES_NAME="list-devices-${PLATFORM}-${ARCH}"
+        LIST_SOUNDS_NAME="list-sounds-${PLATFORM}-${ARCH}"
     fi
 
     BINARY_PATH="${SCRIPT_DIR}/${BINARY_NAME}"
     SOUND_PREVIEW_PATH="${SCRIPT_DIR}/${SOUND_PREVIEW_NAME}"
     LIST_DEVICES_PATH="${SCRIPT_DIR}/${LIST_DEVICES_NAME}"
+    LIST_SOUNDS_PATH="${SCRIPT_DIR}/${LIST_SOUNDS_NAME}"
     CHECKSUMS_PATH="${SCRIPT_DIR}/.checksums.txt"
 }
 
@@ -275,10 +278,10 @@ check_github_availability() {
 check_existing() {
     if [ "$FORCE_UPDATE" = true ]; then
         echo -e "${BLUE}🔄 Force update requested, removing old files...${NC}"
-        rm -f "$BINARY_PATH" "$SOUND_PREVIEW_PATH" "$LIST_DEVICES_PATH" 2>/dev/null
+        rm -f "$BINARY_PATH" "$SOUND_PREVIEW_PATH" "$LIST_DEVICES_PATH" "$LIST_SOUNDS_PATH" 2>/dev/null
         # Remove symlinks (Unix) and .bat wrappers (Windows)
-        rm -f "${SCRIPT_DIR}/claude-notifications" "${SCRIPT_DIR}/sound-preview" "${SCRIPT_DIR}/list-devices" 2>/dev/null
-        rm -f "${SCRIPT_DIR}/claude-notifications.bat" "${SCRIPT_DIR}/sound-preview.bat" "${SCRIPT_DIR}/list-devices.bat" 2>/dev/null
+        rm -f "${SCRIPT_DIR}/claude-notifications" "${SCRIPT_DIR}/sound-preview" "${SCRIPT_DIR}/list-devices" "${SCRIPT_DIR}/list-sounds" 2>/dev/null
+        rm -f "${SCRIPT_DIR}/claude-notifications.bat" "${SCRIPT_DIR}/sound-preview.bat" "${SCRIPT_DIR}/list-devices.bat" "${SCRIPT_DIR}/list-sounds.bat" 2>/dev/null
         # Remove macOS apps for clean reinstall
         rm -rf "${SCRIPT_DIR}/terminal-notifier.app" "${SCRIPT_DIR}/ClaudeNotifications.app" 2>/dev/null
         rm -f "${SCRIPT_DIR}/README.markdown" 2>/dev/null
@@ -337,10 +340,12 @@ download_utilities() {
 
     download_utility "$SOUND_PREVIEW_NAME" "$SOUND_PREVIEW_PATH" || true
     download_utility "$LIST_DEVICES_NAME" "$LIST_DEVICES_PATH" || true
+    download_utility "$LIST_SOUNDS_NAME" "$LIST_SOUNDS_PATH" || true
 
     # Create symlinks for utilities (may fail if downloads failed - that's OK)
     create_utility_symlink "sound-preview" "$SOUND_PREVIEW_NAME" "$SOUND_PREVIEW_PATH" || true
     create_utility_symlink "list-devices" "$LIST_DEVICES_NAME" "$LIST_DEVICES_PATH" || true
+    create_utility_symlink "list-sounds" "$LIST_SOUNDS_NAME" "$LIST_SOUNDS_PATH" || true
 }
 
 # Create symlink for a utility binary
@@ -1111,7 +1116,7 @@ main() {
     echo -e "${GREEN}========================================${NC}"
     echo ""
     echo -e "${GREEN}✓${NC} Binary downloaded: ${BOLD}${BINARY_NAME}${NC}"
-    echo -e "${GREEN}✓${NC} Utilities: sound-preview, list-devices"
+    echo -e "${GREEN}✓${NC} Utilities: sound-preview, list-devices, list-sounds"
     echo -e "${GREEN}✓${NC} Location: ${SCRIPT_DIR}/"
     echo -e "${GREEN}✓${NC} Checksum verified"
     echo -e "${GREEN}✓${NC} Symlinks created"

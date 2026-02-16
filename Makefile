@@ -3,8 +3,10 @@
 # Binary names
 BINARY=claude-notifications
 SOUND_PREVIEW=sound-preview
+LIST_SOUNDS=list-sounds
 BINARY_PATH=bin/$(BINARY)
 SOUND_PREVIEW_PATH=bin/$(SOUND_PREVIEW)
+LIST_SOUNDS_PATH=bin/$(LIST_SOUNDS)
 
 # Build flags
 # Development build: includes debug symbols for debugging
@@ -13,9 +15,10 @@ RELEASE_FLAGS=-ldflags="-s -w" -trimpath
 
 # Build targets
 build: ## Build the binaries (development mode with debug symbols)
-	@echo "Building $(BINARY) and $(SOUND_PREVIEW) (development mode)..."
+	@echo "Building $(BINARY), $(SOUND_PREVIEW) and $(LIST_SOUNDS) (development mode)..."
 	@go build -o $(BINARY_PATH) ./cmd/claude-notifications
 	@go build -o $(SOUND_PREVIEW_PATH) ./cmd/sound-preview
+	@go build -o $(LIST_SOUNDS_PATH) ./cmd/list-sounds
 	@echo "Build complete! Binaries in bin/"
 
 build-all: ## Build optimized binaries for all platforms
@@ -33,6 +36,12 @@ build-all: ## Build optimized binaries for all platforms
 	@GOOS=linux GOARCH=amd64 go build $(RELEASE_FLAGS) -o dist/$(SOUND_PREVIEW)-linux-amd64 ./cmd/sound-preview
 	@GOOS=linux GOARCH=arm64 go build $(RELEASE_FLAGS) -o dist/$(SOUND_PREVIEW)-linux-arm64 ./cmd/sound-preview
 	@GOOS=windows GOARCH=amd64 go build $(RELEASE_FLAGS) -o dist/$(SOUND_PREVIEW)-windows-amd64.exe ./cmd/sound-preview
+	@echo "Building list-sounds..."
+	@GOOS=darwin GOARCH=amd64 go build $(RELEASE_FLAGS) -o dist/$(LIST_SOUNDS)-darwin-amd64 ./cmd/list-sounds
+	@GOOS=darwin GOARCH=arm64 go build $(RELEASE_FLAGS) -o dist/$(LIST_SOUNDS)-darwin-arm64 ./cmd/list-sounds
+	@GOOS=linux GOARCH=amd64 go build $(RELEASE_FLAGS) -o dist/$(LIST_SOUNDS)-linux-amd64 ./cmd/list-sounds
+	@GOOS=linux GOARCH=arm64 go build $(RELEASE_FLAGS) -o dist/$(LIST_SOUNDS)-linux-arm64 ./cmd/list-sounds
+	@GOOS=windows GOARCH=amd64 go build $(RELEASE_FLAGS) -o dist/$(LIST_SOUNDS)-windows-amd64.exe ./cmd/list-sounds
 	@echo "Build complete! Optimized binaries in dist/"
 
 # Test targets

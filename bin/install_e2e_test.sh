@@ -941,9 +941,11 @@ test_real_utilities_installed() {
     if is_windows; then
         assert_file_exists "$TEST_DIR/sound-preview.bat" "sound-preview installed"
         assert_file_exists "$TEST_DIR/list-devices.bat" "list-devices installed"
+        assert_file_exists "$TEST_DIR/list-sounds.bat" "list-sounds installed"
     else
         assert_file_exists "$TEST_DIR/sound-preview" "sound-preview installed"
         assert_file_exists "$TEST_DIR/list-devices" "list-devices installed"
+        assert_file_exists "$TEST_DIR/list-sounds" "list-sounds installed"
     fi
 
     cleanup_test_dir

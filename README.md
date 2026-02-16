@@ -261,6 +261,26 @@ Each status can be individually disabled by adding `"enabled": false`.
 
 **Supported formats:** MP3, WAV, FLAC, OGG/Vorbis, AIFF
 
+### List Available Sounds
+
+See all available notification sounds on your system:
+
+```bash
+# List all sounds (built-in + system)
+bin/list-sounds
+
+# Output as JSON
+bin/list-sounds --json
+
+# Preview a sound
+bin/list-sounds --play task-complete
+
+# Preview at specific volume
+bin/list-sounds --play Glass --volume 0.5
+```
+
+Or use the skill command: `/claude-notifications-go:sounds`
+
 ### Audio Device Selection
 
 Route notification sounds to a specific audio output device instead of the system default:

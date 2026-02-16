@@ -58,6 +58,9 @@ jobs:
       - name: Test sound preview binary
         run: go build -o bin/sound-preview ./cmd/sound-preview
 
+      - name: Test list-sounds binary
+        run: go build -o bin/list-sounds ./cmd/list-sounds
+
       - name: Check for system sounds
         run: |
           if [ -d "/System/Library/Sounds" ]; then

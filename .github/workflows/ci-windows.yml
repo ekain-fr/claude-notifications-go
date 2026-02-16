@@ -61,6 +61,9 @@ jobs:
       - name: Test sound preview binary
         run: go build -o bin/sound-preview.exe ./cmd/sound-preview
 
+      - name: Test list-sounds binary
+        run: go build -o bin/list-sounds.exe ./cmd/list-sounds
+
       - name: Run install.sh unit tests
         run: bash bin/install_test.sh
         shell: bash

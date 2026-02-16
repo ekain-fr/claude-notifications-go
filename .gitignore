@@ -19,6 +19,8 @@ bin/sound-preview
 bin/sound-preview-*
 bin/list-devices
 bin/list-devices-*
+bin/list-sounds
+bin/list-sounds-*
 bin/.checksums.txt
 
 # macOS terminal-notifier (downloaded by install.sh for click-to-focus)

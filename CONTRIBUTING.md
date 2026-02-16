@@ -42,7 +42,7 @@ See [Architecture](docs/ARCHITECTURE.md) for a detailed overview. Key directorie
 
 | Directory | Description |
 |-----------|-------------|
-| `cmd/` | CLI entry points (`claude-notifications`, `sound-preview`, `list-devices`) |
+| `cmd/` | CLI entry points (`claude-notifications`, `sound-preview`, `list-devices`, `list-sounds`) |
 | `internal/` | Core logic (analyzer, hooks, notifier, webhook, config, audio, etc.) |
 | `pkg/jsonl/` | JSONL streaming parser |
 | `commands/` | Plugin skill definitions (`.md` files) |

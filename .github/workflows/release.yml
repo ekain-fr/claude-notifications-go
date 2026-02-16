@@ -76,6 +76,10 @@ jobs:
           LIST_DEVICES_BINARY="${{ matrix.binary }}"
           LIST_DEVICES_BINARY="${LIST_DEVICES_BINARY//claude-notifications/list-devices}"
           go build -ldflags="-s -w" -trimpath -o dist/$LIST_DEVICES_BINARY ./cmd/list-devices
+          echo "Building list-sounds..."
+          LIST_SOUNDS_BINARY="${{ matrix.binary }}"
+          LIST_SOUNDS_BINARY="${LIST_SOUNDS_BINARY//claude-notifications/list-sounds}"
+          go build -ldflags="-s -w" -trimpath -o dist/$LIST_SOUNDS_BINARY ./cmd/list-sounds
 
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v4
