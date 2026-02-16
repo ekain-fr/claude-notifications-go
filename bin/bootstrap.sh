@@ -117,7 +117,8 @@ install_plugin() {
     local old_versions=()
     if [ -d "$version_dir" ]; then
         for d in "$version_dir"/*/; do
-            [ -d "$d" ] && old_versions+=("$(basename "$d")")
+            # Skip symlinks from previous bootstrap runs, only collect real dirs
+            [ -d "$d" ] && [ ! -L "${d%/}" ] && old_versions+=("$(basename "$d")")
         done
     fi
 
@@ -142,15 +143,16 @@ install_plugin() {
 
     # Create symlinks from old version dirs to the new one so running
     # Claude Code instances don't break before restart
-    if [ -d "$version_dir" ]; then
+    if [ -d "$version_dir" ] && [ ${#old_versions[@]} -gt 0 ]; then
         local new_version=""
         for d in "$version_dir"/*/; do
-            [ -d "$d" ] && new_version="$(basename "$d")" && break
+            [ -d "$d" ] && [ ! -L "${d%/}" ] && new_version="$(basename "$d")" && break
         done
 
         if [ -n "$new_version" ]; then
             for old_ver in "${old_versions[@]}"; do
                 if [ "$old_ver" != "$new_version" ] && [ ! -e "$version_dir/$old_ver" ]; then
+                    # Relative symlink (both paths in same directory)
                     ln -s "$new_version" "$version_dir/$old_ver" 2>/dev/null || true
                     echo -e "${BLUE}  Symlink: ${old_ver} → ${new_version} (for running session)${NC}"
                 fi
