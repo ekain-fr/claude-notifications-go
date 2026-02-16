@@ -18,7 +18,8 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
   - [Supported Notification Types](#supported-notification-types)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
-    - [Install from GitHub](#install-from-github)
+    - [Quick Install (Recommended)](#quick-install-recommended)
+    - [Manual Install](#manual-install)
     - [Updating](#updating)
   - [Features](#features)
   - [Platform Support](#platform-support)
@@ -53,7 +54,20 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 - **Windows users:** Git Bash (included with [Git for Windows](https://git-scm.com/download/win)) or WSL
 - **macOS/Linux users:** No additional software required
 
-### Install from GitHub
+### Quick Install (Recommended)
+
+One command to install everything:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/777genius/claude-notifications-go/main/bin/bootstrap.sh | bash
+```
+
+Then restart Claude Code and optionally run `/claude-notifications-go:settings` to configure sounds.
+
+### Manual Install
+
+<details>
+<summary>Step-by-step installation</summary>
 
 ```bash
 # 1) Add marketplace
@@ -68,6 +82,8 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 # Configure sounds and settings
 /claude-notifications-go:settings
 ```
+
+</details>
 
 **That's it!**
 
