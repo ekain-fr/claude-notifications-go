@@ -91,14 +91,27 @@ The binary is downloaded once and cached locally. You can re-run `/claude-notifi
 
 ### Updating
 
-Claude Code periodically checks for plugin updates and installs them automatically. Binaries are also updated automatically — on the next hook invocation, the wrapper detects the version mismatch and downloads the matching binary from GitHub Releases. Your `config.json` settings are preserved.
+Run the same command as for installation — it will update both the plugin and the binary:
 
-To update manually:
+```bash
+curl -fsSL https://raw.githubusercontent.com/777genius/claude-notifications-go/main/bin/bootstrap.sh | bash
+```
+
+Then restart Claude Code to apply the new version. Your `config.json` settings are preserved.
+
+<details>
+<summary>Manual update (if bootstrap didn't work)</summary>
+
+Claude Code also periodically checks for plugin updates automatically. Binaries are updated on the next hook invocation when a version mismatch is detected.
+
+To update manually via Claude Code UI:
 
 1. Run `/plugin`, select **Marketplaces**, choose `claude-notifications-go`, then select **Update marketplace**
 2. Select **Installed**, choose `claude-notifications-go`, then select **Update now**
 
 If the binary auto-update didn't work (e.g. no internet at the time), run `/claude-notifications-go:init` to download it manually. If hook definitions changed in the new version, restart Claude Code to apply them.
+
+</details>
 
 
 ## Features
