@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-02-16
+
+### Added
+- **ntfy.sh webhook documentation** — custom webhook example for push notifications via ntfy.sh ([#29](https://github.com/777genius/claude-notifications-go/pull/29))
+
+### Fixed
+- **Bootstrap: version symlinks** — after update, creates symlinks from old version dirs to the new one so running Claude Code sessions don't break before restart
+- **Bootstrap: Bash 3.2 compatibility** — fixed empty array handling for macOS default bash
+
+### Changed
+- **Updating section in README** — simplified to use the same bootstrap command as installation
+- **Bootstrap success message** — clarifies that update command is same as install
+
 ## [1.17.0] - 2026-02-16
 
 ### Added
