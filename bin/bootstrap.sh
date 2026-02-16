@@ -243,7 +243,7 @@ print_success() {
     echo -e "  1. ${YELLOW}Restart Claude Code${NC} (exit and reopen)"
     echo -e "  2. Run ${BOLD}/claude-notifications-go:settings${NC} to configure sounds"
     echo ""
-    echo -e "${BLUE}One-liner to update in the future:${NC}"
+    echo -e "${BLUE}One-liner to update in the future (same as install):${NC}"
     echo -e "  curl -fsSL https://raw.githubusercontent.com/${REPO}/main/bin/bootstrap.sh | bash"
     echo ""
 }
