@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/777genius/claude-notifications/internal/logging"
 	"github.com/777genius/claude-notifications/internal/platform"
 )
 
@@ -192,10 +193,118 @@ func Load(path string) (*Config, error) {
 	return config, nil
 }
 
-// LoadFromPluginRoot loads configuration from plugin root directory
+// GetStableConfigDir returns the stable config directory outside the plugin cache.
+// This directory survives plugin updates (bootstrap.sh rm -rf of cache).
+func GetStableConfigDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	return filepath.Join(home, ".claude", "claude-notifications-go"), nil
+}
+
+// GetStableConfigPath returns the stable config file path outside the plugin cache.
+func GetStableConfigPath() (string, error) {
+	dir, err := GetStableConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "config.json"), nil
+}
+
+// LoadFromPluginRoot loads configuration with a resilient fallback chain:
+// 1. Stable path (~/.claude/claude-notifications-go/config.json) — preferred
+// 2. Old path (pluginRoot/config/config.json) — fallback, auto-migrates to stable
+// 3. Default config — if neither path has valid config
+//
+// Corrupted config files are non-fatal: a warning is printed to stderr and
+// logged, then the next source in the chain is tried.
 func LoadFromPluginRoot(pluginRoot string) (*Config, error) {
-	configPath := filepath.Join(pluginRoot, "config", "config.json")
-	return Load(configPath)
+	// 1. Try stable path
+	stablePath, stableErr := GetStableConfigPath()
+	if stableErr != nil {
+		msg := fmt.Sprintf("warning: cannot resolve stable config path: %v, using legacy path only", stableErr)
+		fmt.Fprintln(os.Stderr, msg)
+		logging.Warn("%s", msg)
+	}
+	if stableErr == nil {
+		if platform.FileExists(stablePath) {
+			cfg, err := Load(stablePath)
+			if err != nil {
+				// Corrupted stable config — warn and fall through to old path
+				msg := fmt.Sprintf("warning: failed to load config from %s: %v, trying legacy path", stablePath, err)
+				fmt.Fprintln(os.Stderr, msg)
+				logging.Warn("%s", msg)
+			} else {
+				return cfg, nil
+			}
+		}
+	}
+
+	// 2. Try old path (pluginRoot/config/config.json)
+	oldPath := filepath.Join(pluginRoot, "config", "config.json")
+	if platform.FileExists(oldPath) {
+		cfg, err := Load(oldPath)
+		if err != nil {
+			// Corrupted old config — warn, return defaults (non-fatal)
+			msg := fmt.Sprintf("warning: corrupted config at %s, using defaults", oldPath)
+			fmt.Fprintln(os.Stderr, msg)
+			logging.Warn("%s", msg)
+			return DefaultConfig(), nil
+		}
+
+		// Migrate to stable path (best-effort)
+		if stableErr == nil && stablePath != "" {
+			if migErr := migrateConfig(oldPath, stablePath); migErr != nil {
+				msg := fmt.Sprintf("warning: config migration failed: %v", migErr)
+				fmt.Fprintln(os.Stderr, msg)
+				logging.Warn("%s", msg)
+			}
+		}
+
+		return cfg, nil
+	}
+
+	// 3. Neither path has config — return defaults
+	return DefaultConfig(), nil
+}
+
+// migrateConfig copies config from oldPath to stablePath atomically.
+// Uses temp file + rename in the same directory for safe atomic write.
+func migrateConfig(oldPath, stablePath string) error {
+	data, err := os.ReadFile(oldPath)
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(stablePath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+
+	// Create temp file in same dir — guarantees same filesystem for safe os.Rename
+	tmpFile, err := os.CreateTemp(dir, "config-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath) // cleanup on any error path
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0600); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, stablePath)
 }
 
 // ApplyDefaults fills in missing fields with default values

@@ -4,7 +4,7 @@ Clicking a notification activates your terminal window — no more hunting for t
 
 ## Configuration
 
-In `config/config.json`:
+In `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {

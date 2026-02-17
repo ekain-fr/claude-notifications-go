@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -199,6 +200,9 @@ func TestDefaultConfigPathsNoMixedSeparators(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_Success(t *testing.T) {
+	// Isolate stable path so it doesn't interfere
+	t.Setenv("HOME", t.TempDir())
+
 	// Create temp plugin root with config
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, "config")
@@ -226,6 +230,8 @@ func TestLoadFromPluginRoot_Success(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_NoConfigFile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
 	// Create empty plugin root (no config file)
 	tmpDir := t.TempDir()
 
@@ -238,6 +244,9 @@ func TestLoadFromPluginRoot_NoConfigFile(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_MalformedJSON(t *testing.T) {
+	// Isolate stable path so it doesn't interfere
+	t.Setenv("HOME", t.TempDir())
+
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, "config")
 	err := os.MkdirAll(configDir, 0755)
@@ -247,15 +256,17 @@ func TestLoadFromPluginRoot_MalformedJSON(t *testing.T) {
 	err = os.WriteFile(configPath, []byte("{ invalid json }"), 0644)
 	require.NoError(t, err)
 
-	// Should return error for malformed JSON
+	// Corrupted config is non-fatal: returns defaults instead of error
 	cfg, err := LoadFromPluginRoot(tmpDir)
 
-	assert.Error(t, err)
-	assert.Nil(t, cfg)
-	assert.Contains(t, err.Error(), "failed to parse config file")
+	require.NoError(t, err)
+	assert.NotNil(t, cfg)
+	assert.True(t, cfg.Notifications.Desktop.Enabled, "should use default config")
 }
 
 func TestLoadFromPluginRoot_NonexistentRoot(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
 	// Use nonexistent plugin root
 	nonexistentDir := "/nonexistent/plugin/root"
 
@@ -268,6 +279,8 @@ func TestLoadFromPluginRoot_NonexistentRoot(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_EmptyRoot(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
 	// Empty string as plugin root
 	cfg, err := LoadFromPluginRoot("")
 
@@ -277,9 +290,8 @@ func TestLoadFromPluginRoot_EmptyRoot(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_WithEnvironmentVariables(t *testing.T) {
-	// Set test environment variable
-	os.Setenv("TEST_WEBHOOK_URL", "https://example.com/hook")
-	defer os.Unsetenv("TEST_WEBHOOK_URL")
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("TEST_WEBHOOK_URL", "https://example.com/hook")
 
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, "config")
@@ -866,4 +878,205 @@ func TestLoadConfig_WithStatusEnabled(t *testing.T) {
 	// question should be enabled
 	assert.True(t, cfg.IsStatusEnabled("question"))
 	assert.True(t, cfg.IsStatusDesktopEnabled("question"))
+}
+
+// === Tests for stable config path ===
+
+func TestGetStableConfigPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	path, err := GetStableConfigPath()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(home, ".claude", "claude-notifications-go", "config.json"), path)
+}
+
+func TestGetStableConfigPath_NoHome(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("HOME isolation not applicable on Windows (uses USERPROFILE)")
+	}
+
+	// Unset HOME to simulate missing home directory
+	t.Setenv("HOME", "")
+
+	_, err := GetStableConfigPath()
+	assert.Error(t, err)
+}
+
+// === Tests for LoadFromPluginRoot fallback chain ===
+
+func TestLoadFromPluginRoot_StablePathFirst(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create config at stable path
+	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
+	require.NoError(t, os.MkdirAll(stableDir, 0700))
+	stableConfig := `{"notifications":{"desktop":{"enabled":false,"sound":false},"webhook":{"enabled":true,"url":"https://stable.example.com"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(stableDir, "config.json"), []byte(stableConfig), 0600))
+
+	// No config at old path
+	pluginRoot := t.TempDir()
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.False(t, cfg.Notifications.Desktop.Enabled)
+	assert.True(t, cfg.Notifications.Webhook.Enabled)
+	assert.Equal(t, "https://stable.example.com", cfg.Notifications.Webhook.URL)
+}
+
+func TestLoadFromPluginRoot_MigratesFromOldPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create config at old path only
+	pluginRoot := t.TempDir()
+	configDir := filepath.Join(pluginRoot, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+	oldConfig := `{"notifications":{"desktop":{"enabled":false},"webhook":{"enabled":true,"url":"https://old.example.com"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.json"), []byte(oldConfig), 0644))
+
+	// Load — should read from old path and migrate
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.False(t, cfg.Notifications.Desktop.Enabled)
+	assert.Equal(t, "https://old.example.com", cfg.Notifications.Webhook.URL)
+
+	// Verify migration happened
+	stablePath := filepath.Join(home, ".claude", "claude-notifications-go", "config.json")
+	assert.FileExists(t, stablePath)
+
+	// Verify file permissions (0600 — owner-only for security)
+	if runtime.GOOS != "windows" {
+		info, statErr := os.Stat(stablePath)
+		require.NoError(t, statErr)
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "migrated config should have mode 0600")
+	}
+
+	// Verify migrated config is valid
+	migratedCfg, err := Load(stablePath)
+	require.NoError(t, err)
+	assert.Equal(t, "https://old.example.com", migratedCfg.Notifications.Webhook.URL)
+}
+
+func TestLoadFromPluginRoot_StableTakesPriority(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create config at BOTH paths with different values
+	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
+	require.NoError(t, os.MkdirAll(stableDir, 0700))
+	stableConfig := `{"notifications":{"webhook":{"enabled":true,"url":"https://stable.example.com"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(stableDir, "config.json"), []byte(stableConfig), 0600))
+
+	pluginRoot := t.TempDir()
+	configDir := filepath.Join(pluginRoot, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+	oldConfig := `{"notifications":{"webhook":{"enabled":true,"url":"https://old.example.com"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.json"), []byte(oldConfig), 0644))
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.Equal(t, "https://stable.example.com", cfg.Notifications.Webhook.URL, "stable path should take priority")
+}
+
+func TestLoadFromPluginRoot_CorruptedStableFallsBackToOld(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Corrupted stable config
+	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
+	require.NoError(t, os.MkdirAll(stableDir, 0700))
+	require.NoError(t, os.WriteFile(filepath.Join(stableDir, "config.json"), []byte("{ broken json }"), 0600))
+
+	// Valid old config
+	pluginRoot := t.TempDir()
+	configDir := filepath.Join(pluginRoot, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+	oldConfig := `{"notifications":{"webhook":{"enabled":true,"url":"https://old.example.com"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.json"), []byte(oldConfig), 0644))
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.Equal(t, "https://old.example.com", cfg.Notifications.Webhook.URL, "should fall back to old path")
+}
+
+func TestLoadFromPluginRoot_CorruptedBothFallsToDefault(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Corrupted stable config
+	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
+	require.NoError(t, os.MkdirAll(stableDir, 0700))
+	require.NoError(t, os.WriteFile(filepath.Join(stableDir, "config.json"), []byte("{ broken }"), 0600))
+
+	// Corrupted old config
+	pluginRoot := t.TempDir()
+	configDir := filepath.Join(pluginRoot, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.json"), []byte("{ also broken }"), 0644))
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.NotNil(t, cfg)
+	assert.True(t, cfg.Notifications.Desktop.Enabled, "should return defaults")
+}
+
+func TestLoadFromPluginRoot_NeitherPath_ReturnsDefaults(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	pluginRoot := t.TempDir()
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.NotNil(t, cfg)
+	assert.True(t, cfg.Notifications.Desktop.Enabled, "should return defaults")
+}
+
+func TestLoadFromPluginRoot_MigrationFails_StillLoadsOldPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod semantics differ on Windows")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("chmod restrictions don't apply to root")
+	}
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Make stable dir read-only so migration fails
+	stableParent := filepath.Join(home, ".claude")
+	require.NoError(t, os.MkdirAll(stableParent, 0500)) // read+execute only
+	t.Cleanup(func() {
+		os.Chmod(stableParent, 0700) // restore for cleanup
+	})
+
+	// Valid old config
+	pluginRoot := t.TempDir()
+	configDir := filepath.Join(pluginRoot, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+	oldConfig := `{"notifications":{"webhook":{"enabled":true,"url":"https://old.example.com"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.json"), []byte(oldConfig), 0644))
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.Equal(t, "https://old.example.com", cfg.Notifications.Webhook.URL, "should still load from old path")
+}
+
+func TestLoadFromPluginRoot_OldPathMalformed_ReturnsDefault(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// No stable config
+	// Malformed old config
+	pluginRoot := t.TempDir()
+	configDir := filepath.Join(pluginRoot, "config")
+	require.NoError(t, os.MkdirAll(configDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.json"), []byte("not json at all"), 0644))
+
+	cfg, err := LoadFromPluginRoot(pluginRoot)
+	require.NoError(t, err)
+	assert.NotNil(t, cfg)
+	assert.True(t, cfg.Notifications.Desktop.Enabled, "should return defaults for corrupted old config")
 }

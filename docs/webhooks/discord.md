@@ -30,7 +30,7 @@ https://discord.com/api/webhooks/1234567890123456789/AbCdEfGhIjKlMnOpQrStUvWxYz-
 
 ### 3. Configure Plugin
 
-Edit `config/config.json`:
+Edit `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {

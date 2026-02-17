@@ -61,7 +61,7 @@ Telegram integration uses the Bot API to send HTML-formatted messages directly t
 
 ### Step 3: Configure Plugin
 
-Edit `config/config.json`:
+Edit `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {

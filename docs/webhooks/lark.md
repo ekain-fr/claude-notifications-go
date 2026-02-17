@@ -34,7 +34,7 @@ https://open.larksuite.com/open-apis/bot/v2/hook/XXXXXXXXXXXXXXXXXXXX
 
 ### 3. Configure Plugin
 
-Edit `config/config.json`:
+Edit `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {
@@ -199,7 +199,7 @@ Messages use Lark's **Interactive Card API**:
 
 3. **Verify config:**
    ```bash
-   cat config/config.json | grep -A 5 "webhook"
+   cat ~/.claude/claude-notifications-go/config.json | grep -A 5 "webhook"
    ```
 
 ### Wrong Group

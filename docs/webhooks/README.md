@@ -8,7 +8,7 @@ Send Claude Code notifications to Slack, Discord, Telegram, Lark/Feishu, or cust
 
 ### 1. Enable Webhooks
 
-Edit `config/config.json`:
+Edit `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {

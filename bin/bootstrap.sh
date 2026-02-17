@@ -122,6 +122,35 @@ install_plugin() {
         done
     fi
 
+    # Migrate config to stable location before cache clear (#30)
+    local stable_config_dir="${CLAUDE_HOME}/claude-notifications-go"
+    if [ -d "$version_dir" ]; then
+        # Collect version dirs using glob (no ls parsing, Bash 3.2 safe)
+        local ver_dirs=()
+        for d in "$version_dir"/*/; do
+            [ -d "$d" ] && [ ! -L "${d%/}" ] && ver_dirs+=("$d")
+        done
+        # Search in reverse glob order (lexicographic — sufficient when only one version dir exists)
+        local newest_config=""
+        local i
+        for (( i=${#ver_dirs[@]}-1; i>=0; i-- )); do
+            d="${ver_dirs[$i]}"
+            if [ -f "${d}config/config.json" ]; then
+                newest_config="${d}config/config.json"
+                break
+            fi
+        done
+        if [ -n "$newest_config" ] && [ ! -f "$stable_config_dir/config.json" ]; then
+            if mkdir -p "$stable_config_dir" 2>/dev/null; then
+                # Atomic copy: tmp + mv (safe on interrupt)
+                cp "$newest_config" "$stable_config_dir/config.json.tmp" 2>/dev/null && \
+                    mv "$stable_config_dir/config.json.tmp" "$stable_config_dir/config.json" 2>/dev/null && \
+                    echo -e "${BLUE}  Migrated config.json to stable location${NC}"
+                rm -f "$stable_config_dir/config.json.tmp" 2>/dev/null
+            fi
+        fi
+    fi
+
     # Clear plugin cache to work around update bug (#19197)
     if [ -n "$CACHE_DIR" ] && [ "$CACHE_DIR" != "/" ] && [ -d "$CACHE_DIR" ]; then
         echo -e "${BLUE}  Clearing plugin cache...${NC}"

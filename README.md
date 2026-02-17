@@ -97,7 +97,9 @@ Run the same command as for installation — it will update both the plugin and 
 curl -fsSL https://raw.githubusercontent.com/777genius/claude-notifications-go/main/bin/bootstrap.sh | bash
 ```
 
-Then restart Claude Code to apply the new version. Your `config.json` settings are preserved.
+Then restart Claude Code to apply the new version. Your settings in `~/.claude/claude-notifications-go/config.json` are preserved across updates.
+
+> **Note:** Downgrading to v1.18 or earlier requires manually copying config back to `config/config.json` inside the plugin directory.
 
 <details>
 <summary>Manual update (if bootstrap didn't work)</summary>
@@ -155,7 +157,7 @@ Compatible with other Claude Code plugins that spawn background Claude instances
 
 If you're developing a plugin that spawns background Claude instances and want to suppress notifications, set `CLAUDE_HOOK_JUDGE_MODE=true` in the environment before invoking Claude.
 
-To disable this behavior and receive notifications even in judge mode, set in `config/config.json`:
+To disable this behavior and receive notifications even in judge mode, set in `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {
@@ -199,7 +201,15 @@ Run `/claude-notifications-go:settings` to configure sounds, volume, webhooks, a
 
 ### Manual Configuration
 
-Alternatively, edit `config/config.json` directly:
+Config file location:
+
+| Platform | Path |
+|----------|------|
+| macOS / Linux | `~/.claude/claude-notifications-go/config.json` |
+| Windows (Git Bash) | `~/.claude/claude-notifications-go/config.json` |
+| Windows (PowerShell) | `$env:USERPROFILE\.claude\claude-notifications-go\config.json` |
+
+Edit the config file directly:
 
 ```json
 {
@@ -320,7 +330,7 @@ bin/list-devices
 #   2: Immersed
 ```
 
-Then add the device name to your `config.json`:
+Then add the device name to your `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {

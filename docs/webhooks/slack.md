@@ -36,7 +36,7 @@ https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
 
 ### 4. Configure Plugin
 
-Edit `config/config.json`:
+Edit `~/.claude/claude-notifications-go/config.json`:
 
 ```json
 {
@@ -176,7 +176,7 @@ Messages use Slack's **Attachments API**:
 
 3. **Verify config:**
    ```bash
-   cat config/config.json | grep -A 5 "webhook"
+   cat ~/.claude/claude-notifications-go/config.json | grep -A 5 "webhook"
    ```
 
 ### Wrong Channel

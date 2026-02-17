@@ -811,6 +811,8 @@ func TestHandler_SendsWebhookWhenEnabled(t *testing.T) {
 // === NewHandler Constructor Tests ===
 
 func TestNewHandler_Success(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+
 	// Create temp plugin root with valid config
 	tmpDir := t.TempDir()
 
@@ -867,9 +869,19 @@ func TestNewHandler_Success(t *testing.T) {
 	if handler.pluginRoot != tmpDir {
 		t.Errorf("handler.pluginRoot = %s, want %s", handler.pluginRoot, tmpDir)
 	}
+
+	// Verify the test config was actually loaded (not just defaults)
+	info, exists := handler.cfg.GetStatusInfo("task_complete")
+	if !exists {
+		t.Error("expected task_complete status to exist")
+	} else if info.Title != "Task Complete" {
+		t.Errorf("expected task_complete title 'Task Complete' from test config, got %q", info.Title)
+	}
 }
 
 func TestNewHandler_WithDefaultConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+
 	// Create empty plugin root (no config file)
 	tmpDir := t.TempDir()
 
@@ -891,6 +903,8 @@ func TestNewHandler_WithDefaultConfig(t *testing.T) {
 }
 
 func TestNewHandler_InvalidConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+
 	tmpDir := t.TempDir()
 
 	// Create config directory
@@ -934,6 +948,8 @@ func TestNewHandler_InvalidConfig(t *testing.T) {
 }
 
 func TestNewHandler_MalformedJSON(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+
 	tmpDir := t.TempDir()
 
 	// Create config directory
@@ -950,19 +966,23 @@ func TestNewHandler_MalformedJSON(t *testing.T) {
 		t.Fatalf("failed to write config: %v", err)
 	}
 
-	// NewHandler should fail to load config
+	// Malformed JSON is now non-fatal — returns defaults (handler should succeed)
 	handler, err := NewHandler(tmpDir)
 
-	if err == nil {
-		t.Fatal("expected error for malformed JSON, got nil")
+	if err != nil {
+		t.Fatalf("unexpected error for malformed JSON (should return defaults): %v", err)
 	}
 
-	if handler != nil {
-		t.Error("expected handler to be nil on load error")
+	if handler == nil {
+		t.Fatal("expected handler to be non-nil (defaults used)")
 	}
 
-	if !strings.Contains(err.Error(), "failed to load config") {
-		t.Errorf("unexpected error message: %v", err)
+	// Verify default config was actually applied
+	if !handler.cfg.IsDesktopEnabled() {
+		t.Error("expected desktop notifications enabled by default")
+	}
+	if handler.cfg.IsWebhookEnabled() {
+		t.Error("expected webhook notifications disabled by default")
 	}
 }
 
