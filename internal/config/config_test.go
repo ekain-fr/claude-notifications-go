@@ -10,6 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setTestHome sets HOME (and USERPROFILE on Windows) so that
+// os.UserHomeDir() returns the given directory on all platforms.
+func setTestHome(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", dir)
+	}
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
@@ -201,7 +211,7 @@ func TestDefaultConfigPathsNoMixedSeparators(t *testing.T) {
 
 func TestLoadFromPluginRoot_Success(t *testing.T) {
 	// Isolate stable path so it doesn't interfere
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	// Create temp plugin root with config
 	tmpDir := t.TempDir()
@@ -230,7 +240,7 @@ func TestLoadFromPluginRoot_Success(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_NoConfigFile(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	// Create empty plugin root (no config file)
 	tmpDir := t.TempDir()
@@ -245,7 +255,7 @@ func TestLoadFromPluginRoot_NoConfigFile(t *testing.T) {
 
 func TestLoadFromPluginRoot_MalformedJSON(t *testing.T) {
 	// Isolate stable path so it doesn't interfere
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, "config")
@@ -265,7 +275,7 @@ func TestLoadFromPluginRoot_MalformedJSON(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_NonexistentRoot(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	// Use nonexistent plugin root
 	nonexistentDir := "/nonexistent/plugin/root"
@@ -279,7 +289,7 @@ func TestLoadFromPluginRoot_NonexistentRoot(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_EmptyRoot(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 
 	// Empty string as plugin root
 	cfg, err := LoadFromPluginRoot("")
@@ -290,7 +300,7 @@ func TestLoadFromPluginRoot_EmptyRoot(t *testing.T) {
 }
 
 func TestLoadFromPluginRoot_WithEnvironmentVariables(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTestHome(t, t.TempDir())
 	t.Setenv("TEST_WEBHOOK_URL", "https://example.com/hook")
 
 	tmpDir := t.TempDir()
@@ -884,7 +894,7 @@ func TestLoadConfig_WithStatusEnabled(t *testing.T) {
 
 func TestGetStableConfigPath(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	path, err := GetStableConfigPath()
 	require.NoError(t, err)
@@ -897,7 +907,7 @@ func TestGetStableConfigPath_NoHome(t *testing.T) {
 	}
 
 	// Unset HOME to simulate missing home directory
-	t.Setenv("HOME", "")
+	setTestHome(t, "")
 
 	_, err := GetStableConfigPath()
 	assert.Error(t, err)
@@ -907,7 +917,7 @@ func TestGetStableConfigPath_NoHome(t *testing.T) {
 
 func TestLoadFromPluginRoot_StablePathFirst(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// Create config at stable path
 	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
@@ -927,7 +937,7 @@ func TestLoadFromPluginRoot_StablePathFirst(t *testing.T) {
 
 func TestLoadFromPluginRoot_MigratesFromOldPath(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// Create config at old path only
 	pluginRoot := t.TempDir()
@@ -961,7 +971,7 @@ func TestLoadFromPluginRoot_MigratesFromOldPath(t *testing.T) {
 
 func TestLoadFromPluginRoot_StableTakesPriority(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// Create config at BOTH paths with different values
 	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
@@ -982,7 +992,7 @@ func TestLoadFromPluginRoot_StableTakesPriority(t *testing.T) {
 
 func TestLoadFromPluginRoot_CorruptedStableFallsBackToOld(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// Corrupted stable config
 	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
@@ -1003,7 +1013,7 @@ func TestLoadFromPluginRoot_CorruptedStableFallsBackToOld(t *testing.T) {
 
 func TestLoadFromPluginRoot_CorruptedBothFallsToDefault(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// Corrupted stable config
 	stableDir := filepath.Join(home, ".claude", "claude-notifications-go")
@@ -1024,7 +1034,7 @@ func TestLoadFromPluginRoot_CorruptedBothFallsToDefault(t *testing.T) {
 
 func TestLoadFromPluginRoot_NeitherPath_ReturnsDefaults(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	pluginRoot := t.TempDir()
 
@@ -1043,13 +1053,13 @@ func TestLoadFromPluginRoot_MigrationFails_StillLoadsOldPath(t *testing.T) {
 	}
 
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// Make stable dir read-only so migration fails
 	stableParent := filepath.Join(home, ".claude")
 	require.NoError(t, os.MkdirAll(stableParent, 0500)) // read+execute only
 	t.Cleanup(func() {
-		os.Chmod(stableParent, 0700) // restore for cleanup
+		_ = os.Chmod(stableParent, 0700) // restore for cleanup
 	})
 
 	// Valid old config
@@ -1066,7 +1076,7 @@ func TestLoadFromPluginRoot_MigrationFails_StillLoadsOldPath(t *testing.T) {
 
 func TestLoadFromPluginRoot_OldPathMalformed_ReturnsDefault(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	setTestHome(t, home)
 
 	// No stable config
 	// Malformed old config

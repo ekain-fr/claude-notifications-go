@@ -35,8 +35,8 @@ notification_plugin_go/
 ├── pkg/                           # Public libraries
 │   └── jsonl/                     # JSONL parser
 │       └── jsonl.go               # Streaming JSONL parser
-├── config/                        # Configuration files
-│   └── config.json                # Default configuration
+├── config/                        # Legacy config location (migrated to ~/.claude/claude-notifications-go/)
+│   └── config.json                # Legacy config (auto-migrated to stable path)
 ├── hooks/                         # Claude Code hooks
 │   └── hooks.json                 # Hook definitions
 ├── .claude-plugin/                # Plugin metadata

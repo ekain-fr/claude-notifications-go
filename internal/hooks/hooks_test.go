@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +18,16 @@ import (
 	"github.com/777genius/claude-notifications/internal/state"
 	"github.com/777genius/claude-notifications/pkg/jsonl"
 )
+
+// setTestHome sets HOME (and USERPROFILE on Windows) so that
+// os.UserHomeDir() returns the given directory on all platforms.
+func setTestHome(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", dir)
+	}
+}
 
 // === Mock Notifier ===
 
@@ -811,7 +822,7 @@ func TestHandler_SendsWebhookWhenEnabled(t *testing.T) {
 // === NewHandler Constructor Tests ===
 
 func TestNewHandler_Success(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+	setTestHome(t, t.TempDir()) // isolate stable config path
 
 	// Create temp plugin root with valid config
 	tmpDir := t.TempDir()
@@ -880,7 +891,7 @@ func TestNewHandler_Success(t *testing.T) {
 }
 
 func TestNewHandler_WithDefaultConfig(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+	setTestHome(t, t.TempDir()) // isolate stable config path
 
 	// Create empty plugin root (no config file)
 	tmpDir := t.TempDir()
@@ -903,7 +914,7 @@ func TestNewHandler_WithDefaultConfig(t *testing.T) {
 }
 
 func TestNewHandler_InvalidConfig(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+	setTestHome(t, t.TempDir()) // isolate stable config path
 
 	tmpDir := t.TempDir()
 
@@ -948,7 +959,7 @@ func TestNewHandler_InvalidConfig(t *testing.T) {
 }
 
 func TestNewHandler_MalformedJSON(t *testing.T) {
-	t.Setenv("HOME", t.TempDir()) // isolate stable config path
+	setTestHome(t, t.TempDir()) // isolate stable config path
 
 	tmpDir := t.TempDir()
 
@@ -987,6 +998,8 @@ func TestNewHandler_MalformedJSON(t *testing.T) {
 }
 
 func TestNewHandler_NonexistentPluginRoot(t *testing.T) {
+	setTestHome(t, t.TempDir()) // isolate stable config path
+
 	// Use nonexistent directory
 	nonexistentDir := "/nonexistent/plugin/root/path"
 
@@ -1008,6 +1021,8 @@ func TestNewHandler_NonexistentPluginRoot(t *testing.T) {
 }
 
 func TestNewHandler_EmptyPluginRoot(t *testing.T) {
+	setTestHome(t, t.TempDir()) // isolate stable config path
+
 	// Empty string as plugin root
 	handler, err := NewHandler("")
 
