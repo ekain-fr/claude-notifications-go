@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-02-17
+
+### Fixed
+- **Config survives plugin updates** — config.json moved to `~/.claude/claude-notifications-go/config.json` outside the plugin cache, so settings are no longer lost when bootstrap.sh clears the cache during updates ([#30](https://github.com/777genius/claude-notifications-go/issues/30))
+- **Automatic migration** — existing config is auto-migrated from the old location on first run (atomic write with temp file + rename)
+- **Resilient fallback chain** — corrupted config never crashes the plugin; falls back to legacy path or defaults with stderr warnings
+- **Cross-platform test isolation** — `setTestHome` helper correctly sets both HOME and USERPROFILE for Windows compatibility
+- **Lint errcheck** — fixed unchecked `os.Chmod` return value in test cleanup
+
+### Changed
+- **Settings wizard** — now writes config to both stable and legacy paths for backward compatibility with older binary versions
+- **Documentation** — all config path references updated across README, webhook guides, and architecture docs
+
 ## [1.18.0] - 2026-02-16
 
 ### Added
