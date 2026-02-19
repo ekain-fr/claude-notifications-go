@@ -104,12 +104,18 @@ CODESIGN_FLAGS=(--force --timestamp)
 
 if [ "$CI_MODE" = true ]; then
     # CI: use Developer ID Application for distribution
+    # NOTE: hardened runtime (--options runtime) is intentionally omitted.
+    # UNUserNotificationCenter.current() crashes with "bundleProxyForCurrentProcess is nil"
+    # when a hardened-runtime binary is launched from the CLI (not via LaunchServices).
+    # Since this is a CLI tool invoked by the Go binary, we sign with Developer ID
+    # but without hardened runtime. This means we skip notarization (Apple requires
+    # hardened runtime for notarization), but the app still works without Gatekeeper
+    # warnings because it's not downloaded by the user directly.
     SIGNING_IDENTITY="Developer ID Application"
-    CODESIGN_FLAGS+=(--options runtime)
     if [ -f "$ENTITLEMENTS" ]; then
         CODESIGN_FLAGS+=(--entitlements "$ENTITLEMENTS")
     fi
-    echo "Code signing with: ${SIGNING_IDENTITY} (hardened runtime)"
+    echo "Code signing with: ${SIGNING_IDENTITY} (no hardened runtime — CLI tool)"
     codesign "${CODESIGN_FLAGS[@]}" --sign "${SIGNING_IDENTITY}" "${APP_BUNDLE}"
     echo "Code signing successful"
 
@@ -156,7 +162,9 @@ else
 fi
 
 # Notarization (CI mode only, unless --skip-notarize)
-if [ "$CI_MODE" = true ] && [ "$SKIP_NOTARIZE" != true ]; then
+# NOTE: Notarization requires hardened runtime, which we intentionally skip
+# (see code signing section above). Skip notarization for now.
+if [ "$CI_MODE" = true ] && [ "$SKIP_NOTARIZE" != true ] && false; then
     echo ""
     echo "Notarizing ${APP_BUNDLE_NAME}.app..."
 
@@ -204,10 +212,7 @@ echo "  Binary: ${APP_BUNDLE}/Contents/MacOS/${BINARY_NAME}"
 echo "  Bundle: ${APP_BUNDLE}"
 echo ""
 if [ "$CI_MODE" = true ]; then
-    echo "  Signed: Developer ID Application (hardened runtime)"
-    if [ "$SKIP_NOTARIZE" != true ]; then
-        echo "  Notarized: yes"
-    fi
+    echo "  Signed: Developer ID Application (no hardened runtime — CLI tool)"
 fi
 echo ""
 echo "To install into plugin bin/:"
