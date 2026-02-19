@@ -82,6 +82,9 @@ fi
 
 # Run hook or exit gracefully
 if binary_ok; then
+    # Export plugin root so the binary can find ClaudeNotifier.app and other resources
+    CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+    export CLAUDE_PLUGIN_ROOT
     exec "$BINARY" "$@"
 fi
 
