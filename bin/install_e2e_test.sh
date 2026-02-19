@@ -571,8 +571,10 @@ test_force_removes_binaries() {
     touch "$TEST_DIR/$binary_name"
 
     # Run with --force and use unreachable URL so it fails fast after cleanup
+    # SKIP_CONNECTIVITY_CHECK bypasses the curl to github.com (flaky on CI)
     output=$(RELEASE_URL="http://127.0.0.1:1" \
              INSTALL_TARGET_DIR="$TEST_DIR" \
+             SKIP_CONNECTIVITY_CHECK=true \
              run_with_timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true)
 
     # Old files should be removed before download attempt
@@ -592,8 +594,10 @@ test_force_removes_symlinks() {
     ln -sf target_binary "$TEST_DIR/sound-preview" 2>/dev/null || true
 
     # Run with --force and unreachable URL
+    # SKIP_CONNECTIVITY_CHECK bypasses the curl to github.com (flaky on CI)
     RELEASE_URL="http://127.0.0.1:1" \
     INSTALL_TARGET_DIR="$TEST_DIR" \
+    SKIP_CONNECTIVITY_CHECK=true \
     run_with_timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true
 
     # Symlinks should be removed
@@ -624,8 +628,10 @@ test_force_removes_apps_macos() {
     mkdir -p "$TEST_DIR/ClaudeNotifications.app/Contents"
 
     # Run with --force and unreachable URL
+    # SKIP_CONNECTIVITY_CHECK bypasses the curl to github.com (flaky on CI)
     RELEASE_URL="http://127.0.0.1:1" \
     INSTALL_TARGET_DIR="$TEST_DIR" \
+    SKIP_CONNECTIVITY_CHECK=true \
     run_with_timeout 5 bash "$INSTALL_SCRIPT" --force 2>&1 || true
 
     # Apps should be removed

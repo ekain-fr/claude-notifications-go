@@ -237,6 +237,11 @@ get_file_size() {
 check_github_availability() {
     OFFLINE_MODE=false
 
+    # Allow tests to skip the real connectivity check
+    if [ "${SKIP_CONNECTIVITY_CHECK:-}" = true ]; then
+        return 0
+    fi
+
     if command -v curl &> /dev/null; then
         if ! curl -s --max-time 10 -I https://github.com &> /dev/null; then
             # Network unavailable - check if we can use existing binary
