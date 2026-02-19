@@ -184,11 +184,11 @@ func EnsureClaudeNotificationsApp() error {
 	for _, s := range sizes {
 		outPath := filepath.Join(iconsetDir, s.name)
 		cmd := exec.Command("sips", "-z", fmt.Sprintf("%d", s.size), fmt.Sprintf("%d", s.size), iconSrc, "--out", outPath)
-		cmd.Run() // Ignore errors, some sizes may fail
+		_ = cmd.Run() // Ignore errors, some sizes may fail
 	}
 
 	// Copy original as 512x512
-	exec.Command("cp", iconSrc, filepath.Join(iconsetDir, "icon_512x512.png")).Run()
+	_ = exec.Command("cp", iconSrc, filepath.Join(iconsetDir, "icon_512x512.png")).Run()
 
 	// Convert to icns
 	icnsPath := filepath.Join(appDir, "Contents", "Resources", "AppIcon.icns")
@@ -228,7 +228,7 @@ func EnsureClaudeNotificationsApp() error {
 	}
 
 	// Register with Launch Services
-	exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appDir).Run()
+	_ = exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appDir).Run()
 
 	return nil
 }

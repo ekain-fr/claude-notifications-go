@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-02-19
+
+### Added
+- **ClaudeNotifier.app Swift rewrite** — full rewrite of the macOS notifier as a Swift package with UNUserNotificationCenter, hybrid fallback to osascript, and click-to-focus via NSWorkspace
+- **Notification subtitle** — git branch and folder name shown as native subtitle (`main · my-project`) instead of being crammed into the title
+- **Notification actions** — "Open" and "Dismiss" buttons on long-press/swipe via UNNotificationCategory
+- **Thread grouping** — notifications grouped by session ID via `threadIdentifier`, no longer replacing each other
+- **Time-sensitive notifications** — API errors and session limits break through Focus Mode via `interruptionLevel = .timeSensitive` (macOS 12+)
+- **`-nosound` flag** — suppresses Swift notification sound so Go audio player is the single sound source (fixes double sound)
+- **tmux click-to-focus** — clicking a notification in tmux switches to the correct window and pane via `-execute`
+- **tmux E2E tests** — comprehensive integration tests for tmux pane detection, args building, and socket path extraction
+- **install.sh ClaudeNotifier.app support** — downloads signed+notarized ClaudeNotifier.app.zip from GitHub Releases
+
+### Fixed
+- **tmux shell quoting** — tmux path and socket path properly quoted with single quotes in `-execute` commands
+- **ARC delegate lifetime** — `withExtendedLifetime(appDelegate)` prevents premature deallocation in callback mode
+- **AppleScript newline escaping** — newlines and carriage returns stripped from title/message/subtitle before passing to osascript
+- **build-app.sh codesign** — `CODESIGN_FLAGS` converted from string to bash array to handle spaces in entitlements path
+- **Flaky CI connectivity check** — `SKIP_CONNECTIVITY_CHECK` env var for E2E tests to avoid flaky `curl https://github.com` timeouts on macOS runners
+
+### Changed
+- **`SendDesktop` signature** — now accepts `sessionID` for thread grouping: `SendDesktop(status, message, sessionID)`
+- **Notification title** — cleaned up to show only status emoji + session name, metadata moved to subtitle
+
 ## [1.19.0] - 2026-02-17
 
 ### Fixed
