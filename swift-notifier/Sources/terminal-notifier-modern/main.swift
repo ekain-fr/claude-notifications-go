@@ -37,11 +37,11 @@ func runSendMode(arguments: [String]) {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
 
-    // Register notification category with actions before sending
-    NotificationCategory.register()
-
-    // Schedule all async work on the main queue — no data races
+    // Schedule all async work on the main queue — no data races.
+    // UNUserNotificationCenter requires the run loop to be active,
+    // so register() and all send logic must run AFTER app.run() starts.
     DispatchQueue.main.async {
+        NotificationCategory.register()
         checkAuthAndSend(config: config)
     }
 
