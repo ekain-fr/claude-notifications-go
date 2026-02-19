@@ -974,8 +974,9 @@ test_real_terminal_notifier_macos() {
 
     INSTALL_TARGET_DIR="$TEST_DIR" bash "$INSTALL_SCRIPT" 2>&1 || true
 
-    assert_dir_exists "$TEST_DIR/terminal-notifier.app" "terminal-notifier.app installed"
-    assert_executable "$TEST_DIR/terminal-notifier.app/Contents/MacOS/terminal-notifier" "terminal-notifier executable"
+    # ClaudeNotifier.app is the modern notifier (preferred over legacy terminal-notifier.app)
+    assert_dir_exists "$TEST_DIR/ClaudeNotifier.app" "ClaudeNotifier.app installed"
+    assert_executable "$TEST_DIR/ClaudeNotifier.app/Contents/MacOS/terminal-notifier-modern" "terminal-notifier-modern executable"
 
     cleanup_test_dir
 }
