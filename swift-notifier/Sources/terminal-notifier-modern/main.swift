@@ -34,8 +34,34 @@ func runSendMode(arguments: [String]) {
         exit(ExitCode.invalidArgs)
     }
 
+    // Without a valid app bundle, UNUserNotificationCenter.current() crashes
+    // with "bundleProxyForCurrentProcess is nil". Use osascript directly.
+    guard Bundle.main.bundleIdentifier != nil else {
+        OsascriptNotificationService().send(config: config) { result in
+            switch result {
+            case .success:
+                exit(ExitCode.success)
+            case .failure(let error):
+                fputs("Error: \(error)\n", stderr)
+                exit(ExitCode.failed)
+            }
+        }
+        return
+    }
+
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
+
+    // Safety timeout on a background queue — fires even if main queue is blocked.
+    // UNUserNotificationCenter may hang when the .app is launched from CLI
+    // (not via LaunchServices), especially on macOS Sequoia.
+    // Falls back to osascript which always works (no permission needed).
+    DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) {
+        fputs("Warning: UNUserNotificationCenter timed out, using osascript fallback\n", stderr)
+        OsascriptNotificationService().send(config: config) { _ in
+            exit(ExitCode.success)
+        }
+    }
 
     // Schedule all async work on the main queue — no data races.
     // UNUserNotificationCenter requires the run loop to be active,

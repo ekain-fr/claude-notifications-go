@@ -96,31 +96,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Import Apple certificate
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-
-          echo -n "$APPLE_CERTIFICATE" | base64 --decode > $CERTIFICATE_PATH
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple: \
-            -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | sed s/\"//g)
-
-      - name: Build and sign ClaudeNotifier.app
+      - name: Build ClaudeNotifier.app
         run: |
           cd swift-notifier
-          bash scripts/build-app.sh --ci
+          bash scripts/build-app.sh
 
       - name: Create zip artifact
         run: |

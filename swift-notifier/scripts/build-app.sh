@@ -12,22 +12,7 @@ APP_BUNDLE="${PROJECT_DIR}/${APP_BUNDLE_NAME}.app"
 ICON_SRC="${REPO_ROOT}/claude_icon.png"
 ENTITLEMENTS="${PROJECT_DIR}/entitlements.plist"
 
-# Parse arguments
-CI_MODE=false
-SKIP_NOTARIZE=false
-for arg in "$@"; do
-    case "$arg" in
-        --ci) CI_MODE=true ;;
-        --skip-notarize) SKIP_NOTARIZE=true ;;
-    esac
-done
-
 echo "Building ${BINARY_NAME}..."
-if [ "$CI_MODE" = true ]; then
-    echo "  Mode: CI (Developer ID Application + notarization)"
-else
-    echo "  Mode: Local"
-fi
 
 # Build universal binary (arm64 + x86_64) for both Apple Silicon and Intel Macs
 cd "$PROJECT_DIR"
@@ -99,105 +84,17 @@ else
     echo "Warning: icon source not found at ${ICON_SRC}, skipping icon generation"
 fi
 
-# Code signing
-CODESIGN_FLAGS=(--force --timestamp)
-
-if [ "$CI_MODE" = true ]; then
-    # CI: use Developer ID Application for distribution
-    # NOTE: hardened runtime (--options runtime) is intentionally omitted.
-    # UNUserNotificationCenter.current() crashes with "bundleProxyForCurrentProcess is nil"
-    # when a hardened-runtime binary is launched from the CLI (not via LaunchServices).
-    # Since this is a CLI tool invoked by the Go binary, we sign with Developer ID
-    # but without hardened runtime. This means we skip notarization (Apple requires
-    # hardened runtime for notarization), but the app still works without Gatekeeper
-    # warnings because it's not downloaded by the user directly.
-    SIGNING_IDENTITY="Developer ID Application"
-    if [ -f "$ENTITLEMENTS" ]; then
-        CODESIGN_FLAGS+=(--entitlements "$ENTITLEMENTS")
-    fi
-    echo "Code signing with: ${SIGNING_IDENTITY} (no hardened runtime — CLI tool)"
-    codesign "${CODESIGN_FLAGS[@]}" --sign "${SIGNING_IDENTITY}" "${APP_BUNDLE}"
-    echo "Code signing successful"
-
-    # Verify signature
-    codesign --verify --verbose "${APP_BUNDLE}"
-    echo "Signature verified"
-else
-    # Local: try Developer ID Application first, then Apple Development, then ad-hoc
-    SIGNING_IDENTITY=""
-
-    # Try Developer ID Application
-    DEV_ID=$(security find-identity -v -p codesigning 2>/dev/null | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)"/\1/' || true)
-    if [ -n "$DEV_ID" ]; then
-        SIGNING_IDENTITY="$DEV_ID"
-        CODESIGN_FLAGS+=(--options runtime)
-        if [ -f "$ENTITLEMENTS" ]; then
-            CODESIGN_FLAGS+=(--entitlements "$ENTITLEMENTS")
-        fi
-        echo "Code signing with: ${SIGNING_IDENTITY} (hardened runtime)"
-    fi
-
-    # Try Apple Development
-    if [ -z "$SIGNING_IDENTITY" ]; then
-        APPLE_DEV=$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" | head -1 | sed 's/.*"\(.*\)"/\1/' || true)
-        if [ -n "$APPLE_DEV" ]; then
-            SIGNING_IDENTITY="$APPLE_DEV"
-            echo "Code signing with: ${SIGNING_IDENTITY}"
-        fi
-    fi
-
-    if [ -n "$SIGNING_IDENTITY" ]; then
-        codesign "${CODESIGN_FLAGS[@]}" --sign "${SIGNING_IDENTITY}" "${APP_BUNDLE}" 2>/dev/null || {
-            echo "Developer signing failed, falling back to ad-hoc..."
-            codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null || {
-                echo "Warning: code signing failed (notifications may require manual permission)"
-            }
-        }
-    else
-        echo "Code signing .app bundle (ad-hoc)..."
-        codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null || {
-            echo "Warning: code signing failed (notifications may require manual permission)"
-        }
-    fi
-fi
-
-# Notarization (CI mode only, unless --skip-notarize)
-# NOTE: Notarization requires hardened runtime, which we intentionally skip
-# (see code signing section above). Skip notarization for now.
-if [ "$CI_MODE" = true ] && [ "$SKIP_NOTARIZE" != true ] && false; then
-    echo ""
-    echo "Notarizing ${APP_BUNDLE_NAME}.app..."
-
-    # Zip for notarization submission
-    NOTARIZE_ZIP="${BUILD_DIR}/${APP_BUNDLE_NAME}-notarize.zip"
-    ditto -c -k --keepParent "${APP_BUNDLE}" "${NOTARIZE_ZIP}"
-
-    # Submit for notarization
-    # Requires APPLE_ID, APPLE_PASSWORD (app-specific), APPLE_TEAM_ID env vars
-    if [ -z "$APPLE_ID" ] || [ -z "$APPLE_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
-        echo "Error: APPLE_ID, APPLE_PASSWORD, and APPLE_TEAM_ID must be set for notarization"
-        exit 1
-    fi
-
-    xcrun notarytool submit "${NOTARIZE_ZIP}" \
-        --apple-id "${APPLE_ID}" \
-        --password "${APPLE_PASSWORD}" \
-        --team-id "${APPLE_TEAM_ID}" \
-        --wait
-
-    rm -f "${NOTARIZE_ZIP}"
-
-    # Staple the notarization ticket
-    echo "Stapling notarization ticket..."
-    xcrun stapler staple "${APP_BUNDLE}"
-
-    echo "Notarization complete!"
-
-    # Final verification
-    echo "Verifying notarized bundle..."
-    codesign --verify --verbose "${APP_BUNDLE}"
-    spctl --assess --type execute --verbose "${APP_BUNDLE}" || true
-fi
+# Code signing — always use ad-hoc.
+# Developer ID Application signing causes macOS to SIGKILL the binary on launch
+# (Gatekeeper/AMFI blocks non-notarized Developer ID apps run from CLI).
+# Ad-hoc signing works reliably because:
+# - The binary is never downloaded directly by users (installed via script/curl)
+# - No Gatekeeper check for script-installed binaries
+# - UNUserNotificationCenter works correctly with ad-hoc signing
+echo "Code signing .app bundle (ad-hoc)..."
+codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null || {
+    echo "Warning: code signing failed (notifications may require manual permission)"
+}
 
 # Register with Launch Services (makes macOS aware of the app and its icon)
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
@@ -211,9 +108,6 @@ echo "Build complete!"
 echo "  Binary: ${APP_BUNDLE}/Contents/MacOS/${BINARY_NAME}"
 echo "  Bundle: ${APP_BUNDLE}"
 echo ""
-if [ "$CI_MODE" = true ]; then
-    echo "  Signed: Developer ID Application (no hardened runtime — CLI tool)"
-fi
 echo ""
 echo "To install into plugin bin/:"
 echo "  cp -R ${APP_BUNDLE} ${REPO_ROOT}/bin/"
