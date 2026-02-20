@@ -290,6 +290,37 @@ func sanitizeForAppleScript(s string) string {
 	return b.String()
 }
 
+// SendQuickNotification sends a one-off notification without requiring a
+// Notifier instance. Fallback chain: terminal-notifier → osascript.
+// executeCmd is the shell command run when the user clicks the notification (may be empty).
+func SendQuickNotification(title, message, executeCmd string) error {
+	if notifierPath, err := GetTerminalNotifierPath(); err == nil {
+		args := []string{
+			"-title", title,
+			"-message", message,
+		}
+		if executeCmd != "" {
+			args = append(args, "-execute", executeCmd)
+		}
+		args = append(args,
+			"-group", fmt.Sprintf("claude-quick-%d", time.Now().UnixNano()),
+			"-nosound",
+		)
+		if output, err := exec.Command(notifierPath, args...).CombinedOutput(); err == nil {
+			return nil
+		} else {
+			logging.Debug("terminal-notifier failed: %v, output: %s", err, string(output))
+		}
+	}
+
+	// Fallback: osascript (no click action, just informational)
+	script := fmt.Sprintf(`display notification %q with title %q`, message, title)
+	if err := exec.Command("osascript", "-e", script).Run(); err != nil {
+		return fmt.Errorf("all notification methods failed: %w", err)
+	}
+	return nil
+}
+
 // sendWithBeeep sends notification via beeep (cross-platform)
 func (n *Notifier) sendWithBeeep(title, message, appIcon, sound string) error {
 	// Platform-specific AppName handling:

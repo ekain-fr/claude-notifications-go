@@ -116,12 +116,19 @@ static void switchToWindowSpace(CGWindowID windowID, CGRect bounds) {
 	}
 }
 
+static int hasScreenRecordingAccess(void) {
+	return CGPreflightScreenCaptureAccess() ? 1 : 0;
+}
+
+static void requestScreenRecordingAccess(void) {
+	CGRequestScreenCaptureAccess();
+}
+
 // raiseWindowByTitle finds the window whose title contains folderName across all
 // Spaces, switches to its Space, activates the app, then raises the window via AX.
 // Returns 1 on success, 0 if window not found, -1 if Screen Recording permission is missing.
 static int raiseWindowByTitle(int pid, const char *folderName) {
 	if (!CGPreflightScreenCaptureAccess()) {
-		CGRequestScreenCaptureAccess();
 		return -1;
 	}
 
@@ -174,8 +181,11 @@ import "C"
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"unsafe"
+
+	"github.com/777genius/claude-notifications/internal/config"
 )
 
 // FocusAppWindow switches to the Space containing the bundleID app's window for
@@ -199,12 +209,37 @@ func FocusAppWindow(bundleID, cwd string) error {
 	result := C.raiseWindowByTitle(C.int(pid), cFolder)
 	switch {
 	case result < 0:
-		// No Screen Recording permission: fall back to plain app activation so
-		// the terminal at least comes to front, then surface the error.
+		// No Screen Recording permission — show explanation once, then fall back.
+		promptScreenRecordingOnce()
 		C.activateByPID(C.int(pid))
 		return fmt.Errorf("Screen Recording permission required: grant it in System Settings → Privacy & Security → Screen Recording, then try again")
 	case result == 0:
 		return fmt.Errorf("window not found for %s (cwd: %s)", bundleID, cwd)
 	}
 	return nil
+}
+
+// promptScreenRecordingOnce sends a one-time notification explaining why Screen
+// Recording access is needed. Clicking the notification opens the settings pane.
+// Uses the plugin's own notification system (ClaudeNotifier.app → legacy → osascript).
+func promptScreenRecordingOnce() {
+	stableDir, err := config.GetStableConfigDir()
+	if err != nil {
+		return
+	}
+	markerPath := filepath.Join(stableDir, ".screen-recording-prompted")
+
+	if _, err := os.Stat(markerPath); err == nil {
+		return // already prompted
+	}
+
+	// Mark as prompted before sending (avoid duplicate prompts on error)
+	_ = os.MkdirAll(stableDir, 0755)
+	_ = os.WriteFile(markerPath, []byte("1"), 0644)
+
+	_ = SendQuickNotification(
+		"Screen Recording Access Needed",
+		"Click-to-focus reads window titles to find the right window. No screen content is ever recorded. Click to open Settings.",
+		`open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"`,
+	)
 }

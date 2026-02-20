@@ -1071,6 +1071,28 @@ func TestBuildTerminalNotifierArgs_WithCWD_TerminalUsesAppleScript(t *testing.T)
 	}
 }
 
+// === Tests for SendQuickNotification ===
+
+func TestSendQuickNotification_DoesNotPanic(t *testing.T) {
+	// SendQuickNotification should never panic regardless of environment.
+	// In CI where neither terminal-notifier nor osascript may work,
+	// an error is acceptable.
+	err := SendQuickNotification("Test Title", "Test message", "")
+	_ = err
+}
+
+func TestSendQuickNotification_WithExecuteCmd(t *testing.T) {
+	// Should not panic when executeCmd is provided
+	err := SendQuickNotification("Title", "Message", "echo hello")
+	_ = err
+}
+
+func TestSendQuickNotification_EmptyFields(t *testing.T) {
+	// Edge case: all empty strings
+	err := SendQuickNotification("", "", "")
+	_ = err
+}
+
 func TestSanitizeForAppleScript(t *testing.T) {
 	tests := []struct {
 		input    string
