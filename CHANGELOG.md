@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-02-20
+
+### Added
+- **Window-specific click-to-focus** — clicking a notification now focuses the exact project window instead of just activating the app ([#31](https://github.com/777genius/claude-notifications-go/pull/31))
+  - macOS VS Code: CGo AXUIElement API via `focus-window` subcommand with cross-Space support (private CGS APIs)
+  - macOS other terminals: AppleScript title search by folder name with `exit repeat` fix
+  - Linux: folder name threaded through daemon IPC to xdotool/wlrctl/gdbus focus methods
+- **Screen Recording permission prompt** — one-time notification when Screen Recording access is needed, with click-to-open System Settings
+- **`SendQuickNotification()`** — standalone function for one-off notifications without a Notifier instance
+- **Emoji-based compact notification format** — shorter, more readable notification messages
+
+### Fixed
+- **Window title matching** — replaced substring matching with component-based matching (split by " — " / " - ") to prevent false positives (e.g., folder `app` no longer matches `my-app`)
+- **AppleScript escaping** — `sanitizeForAppleScript` now properly escapes `"`, `\`, and `'` instead of stripping them
+- **Double punctuation** — notification messages no longer end with duplicate periods
+- **Timestamp-filtered summaries** — task and review summaries now use only recent messages
+
+### Changed
+- **`SendDesktop` signature** — now accepts `cwd` for window-specific focus: `SendDesktop(status, message, sessionID, cwd)`
+
 ## [1.20.0] - 2026-02-19
 
 ### Added
