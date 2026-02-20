@@ -400,7 +400,7 @@ func formatDuration(d time.Duration) string {
 	seconds := int(d.Seconds())
 
 	if seconds < 60 {
-		return fmt.Sprintf("Took %ds", seconds)
+		return fmt.Sprintf("⏱ %ds", seconds)
 	}
 
 	minutes := seconds / 60
@@ -408,18 +408,18 @@ func formatDuration(d time.Duration) string {
 
 	if minutes < 60 {
 		if secs > 0 {
-			return fmt.Sprintf("Took %dm %ds", minutes, secs)
+			return fmt.Sprintf("⏱ %dm %ds", minutes, secs)
 		}
-		return fmt.Sprintf("Took %dm", minutes)
+		return fmt.Sprintf("⏱ %dm", minutes)
 	}
 
 	hours := minutes / 60
 	mins := minutes % 60
 
 	if mins > 0 {
-		return fmt.Sprintf("Took %dh %dm", hours, mins)
+		return fmt.Sprintf("⏱ %dh %dm", hours, mins)
 	}
-	return fmt.Sprintf("Took %dh", hours)
+	return fmt.Sprintf("⏱ %dh", hours)
 }
 
 // countToolsByType counts tools since last user message
@@ -466,29 +466,17 @@ func buildActionsString(toolCounts map[string]int, duration string) string {
 
 	// Write
 	if count := toolCounts["Write"]; count > 0 {
-		noun := "file"
-		if count != 1 {
-			noun = "files"
-		}
-		parts = append(parts, fmt.Sprintf("Created %d %s", count, noun))
+		parts = append(parts, fmt.Sprintf("📝 %d new", count))
 	}
 
 	// Edit
 	if count := toolCounts["Edit"]; count > 0 {
-		noun := "file"
-		if count != 1 {
-			noun = "files"
-		}
-		parts = append(parts, fmt.Sprintf("Edited %d %s", count, noun))
+		parts = append(parts, fmt.Sprintf("✏️ %d edited", count))
 	}
 
 	// Bash
 	if count := toolCounts["Bash"]; count > 0 {
-		noun := "command"
-		if count != 1 {
-			noun = "commands"
-		}
-		parts = append(parts, fmt.Sprintf("Ran %d %s", count, noun))
+		parts = append(parts, fmt.Sprintf("▶ %d cmds", count))
 	}
 
 	// Add duration at the end
@@ -500,7 +488,7 @@ func buildActionsString(toolCounts map[string]int, duration string) string {
 		return ""
 	}
 
-	return strings.Join(parts, ". ")
+	return strings.Join(parts, "  ")
 }
 
 // Helper functions

@@ -18,12 +18,12 @@ func TestFormatDuration(t *testing.T) {
 		duration time.Duration
 		expected string
 	}{
-		{30 * time.Second, "Took 30s"},
-		{90 * time.Second, "Took 1m 30s"},
-		{120 * time.Second, "Took 2m"},
-		{3661 * time.Second, "Took 1h 1m"},
-		{3600 * time.Second, "Took 1h"},
-		{7200 * time.Second, "Took 2h"},
+		{30 * time.Second, "⏱ 30s"},
+		{90 * time.Second, "⏱ 1m 30s"},
+		{120 * time.Second, "⏱ 2m"},
+		{3661 * time.Second, "⏱ 1h 1m"},
+		{3600 * time.Second, "⏱ 1h"},
+		{7200 * time.Second, "⏱ 2h"},
 	}
 
 	for _, tt := range tests {
@@ -46,20 +46,20 @@ func TestBuildActionsString(t *testing.T) {
 		{
 			name:       "All actions with duration",
 			toolCounts: map[string]int{"Write": 3, "Edit": 2, "Bash": 1},
-			duration:   "Took 2m 15s",
-			expected:   "Created 3 files. Edited 2 files. Ran 1 command. Took 2m 15s",
+			duration:   "⏱ 2m 15s",
+			expected:   "📝 3 new  ✏️ 2 edited  ▶ 1 cmds  ⏱ 2m 15s",
 		},
 		{
 			name:       "Only write",
 			toolCounts: map[string]int{"Write": 1},
 			duration:   "",
-			expected:   "Created 1 file",
+			expected:   "📝 1 new",
 		},
 		{
 			name:       "Multiple edits",
 			toolCounts: map[string]int{"Edit": 5},
-			duration:   "Took 30s",
-			expected:   "Edited 5 files. Took 30s",
+			duration:   "⏱ 30s",
+			expected:   "✏️ 5 edited  ⏱ 30s",
 		},
 		{
 			name:       "No tools",
@@ -516,7 +516,7 @@ func TestGenerateFromTranscript_TaskComplete(t *testing.T) {
 	result := GenerateFromTranscript(transcriptPath, analyzer.StatusTaskComplete, cfg)
 
 	// Should contain action summary
-	if !strings.Contains(result, "Created") || !strings.Contains(result, "Edited") {
+	if !strings.Contains(result, "new") || !strings.Contains(result, "edited") {
 		t.Errorf("TaskComplete summary should mention actions, got: %s", result)
 	}
 }
@@ -985,10 +985,10 @@ func TestGenerateTaskSummary_WithMultipleTools(t *testing.T) {
 
 	result := generateTaskSummary(messages, cfg)
 	// Should contain tool counts and duration
-	if !strings.Contains(result, "Created") && !strings.Contains(result, "files") {
+	if !strings.Contains(result, "new") && !strings.Contains(result, "edited") {
 		t.Errorf("generateTaskSummary() should mention tools: %q", result)
 	}
-	if !strings.Contains(result, "Took") {
+	if !strings.Contains(result, "⏱") {
 		t.Errorf("generateTaskSummary() should include duration: %q", result)
 	}
 }
@@ -1166,9 +1166,9 @@ func TestCalculateDuration(t *testing.T) {
 	}
 
 	duration := calculateDuration(messages)
-	// Should be "Took 2m" for 120 seconds
-	if !strings.Contains(duration, "Took") || !strings.Contains(duration, "2m") {
-		t.Errorf("calculateDuration() = %q, want 'Took 2m'", duration)
+	// Should be "⏱ 2m" for 120 seconds
+	if !strings.Contains(duration, "⏱") || !strings.Contains(duration, "2m") {
+		t.Errorf("calculateDuration() = %q, want '⏱ 2m'", duration)
 	}
 }
 
