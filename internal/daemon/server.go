@@ -19,6 +19,12 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
+// focusInfo holds the focus target and folder for a notification.
+type focusInfo struct {
+	target string
+	folder string
+}
+
 // Server is the notification daemon server
 type Server struct {
 	conn      *dbus.Conn
@@ -26,8 +32,8 @@ type Server struct {
 	listener  net.Listener
 	startTime time.Time
 
-	// Focus context mapping: notification ID -> focus target
-	focusCtx   map[uint32]string
+	// Focus context mapping: notification ID -> focus info
+	focusCtx   map[uint32]focusInfo
 	focusCtxMu sync.RWMutex
 
 	// Idle timeout for auto-shutdown
@@ -65,7 +71,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	s := &Server{
 		conn:         conn,
 		startTime:    time.Now(),
-		focusCtx:     make(map[uint32]string),
+		focusCtx:     make(map[uint32]focusInfo),
 		idleTimeout:  cfg.IdleTimeout,
 		lastActivity: time.Now(),
 		done:         make(chan struct{}),
@@ -267,10 +273,10 @@ func (s *Server) handleNotification(req *NotifyRequest) (*NotifyResponse, error)
 
 	// Store focus context
 	s.focusCtxMu.Lock()
-	s.focusCtx[id] = focusTarget
+	s.focusCtx[id] = focusInfo{target: focusTarget, folder: req.FocusFolder}
 	s.focusCtxMu.Unlock()
 
-	log.Printf("[INFO] Notification sent: ID=%d, focus_target=%s", id, focusTarget)
+	log.Printf("[INFO] Notification sent: ID=%d, focus_target=%s, focus_folder=%s", id, focusTarget, req.FocusFolder)
 
 	return &NotifyResponse{
 		Success:        true,
@@ -288,8 +294,10 @@ func (s *Server) onActionInvoked(sig *notify.ActionInvokedSignal) {
 
 	// Get focus target
 	s.focusCtxMu.RLock()
-	focusTarget, exists := s.focusCtx[sig.ID]
+	info, exists := s.focusCtx[sig.ID]
 	s.focusCtxMu.RUnlock()
+	focusTarget := info.target
+	focusFolder := info.folder
 
 	if !exists {
 		log.Printf("[WARN] No focus context for notification %d", sig.ID)
@@ -297,8 +305,8 @@ func (s *Server) onActionInvoked(sig *notify.ActionInvokedSignal) {
 	}
 
 	// Attempt to focus
-	log.Printf("[INFO] Attempting to focus: %s", focusTarget)
-	if err := TryFocus(focusTarget); err != nil {
+	log.Printf("[INFO] Attempting to focus: %s (folder: %s)", focusTarget, focusFolder)
+	if err := TryFocus(focusTarget, focusFolder); err != nil {
 		log.Printf("[ERROR] Focus failed: %v", err)
 	} else {
 		log.Printf("[INFO] Focus succeeded")

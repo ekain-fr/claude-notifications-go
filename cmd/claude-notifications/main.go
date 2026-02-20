@@ -8,6 +8,7 @@ import (
 	"github.com/777genius/claude-notifications/internal/errorhandler"
 	"github.com/777genius/claude-notifications/internal/hooks"
 	"github.com/777genius/claude-notifications/internal/logging"
+	"github.com/777genius/claude-notifications/internal/notifier"
 )
 
 const version = "1.20.0"
@@ -37,6 +38,15 @@ func main() {
 			os.Exit(1)
 		}
 		handleHook(os.Args[2])
+	case "focus-window":
+		if len(os.Args) < 4 {
+			fmt.Fprintf(os.Stderr, "Error: focus-window requires bundleID and cwd arguments\n")
+			os.Exit(1)
+		}
+		if err := notifier.FocusAppWindow(os.Args[2], os.Args[3]); err != nil {
+			fmt.Fprintf(os.Stderr, "focus-window: %v\n", err)
+			os.Exit(1)
+		}
 	case "daemon", "--daemon":
 		runDaemon()
 	case "version", "--version", "-v":
@@ -120,6 +130,8 @@ func printUsage() {
 	fmt.Println("                          HookName: PreToolUse, Stop, SubagentStop, Notification")
 	fmt.Println("  daemon                  Run the notification daemon (Linux only)")
 	fmt.Println("                          For click-to-focus support on desktop notifications")
+	fmt.Println("  focus-window <bundleID> <cwd>")
+	fmt.Println("                          Focus specific VS Code window (internal, used by click-to-focus)")
 	fmt.Println("  version                 Show version information")
 	fmt.Println("  help                    Show this help message")
 	fmt.Println()

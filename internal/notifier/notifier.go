@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -49,7 +50,8 @@ func isTimeSensitiveStatus(status analyzer.Status) bool {
 // SendDesktop sends a desktop notification using beeep (cross-platform)
 // On macOS with clickToFocus enabled, uses terminal-notifier for click-to-focus support
 // On Linux with clickToFocus enabled, uses background daemon for click-to-focus support
-func (n *Notifier) SendDesktop(status analyzer.Status, message, sessionID string) error {
+// cwd is the working directory of the project; used for window-specific focus. May be empty.
+func (n *Notifier) SendDesktop(status analyzer.Status, message, sessionID, cwd string) error {
 	// Send terminal bell for terminal tab indicators (e.g. Ghostty, tmux)
 	if n.cfg.IsTerminalBellEnabled() {
 		sendTerminalBell()
@@ -101,7 +103,7 @@ func (n *Notifier) SendDesktop(status analyzer.Status, message, sessionID string
 	// macOS: Try terminal-notifier for click-to-focus support
 	if platform.IsMacOS() && n.cfg.Notifications.Desktop.ClickToFocus {
 		if IsTerminalNotifierAvailable() {
-			if err := n.sendWithTerminalNotifier(title, cleanMessage, subtitle, sessionID, timeSensitive); err != nil {
+			if err := n.sendWithTerminalNotifier(title, cleanMessage, subtitle, sessionID, timeSensitive, cwd); err != nil {
 				logging.Warn("terminal-notifier failed, falling back to beeep: %v", err)
 				// Fall through to beeep
 			} else {
@@ -116,7 +118,7 @@ func (n *Notifier) SendDesktop(status analyzer.Status, message, sessionID string
 
 	// Linux: Try daemon for click-to-focus support
 	if platform.IsLinux() && n.cfg.Notifications.Desktop.ClickToFocus {
-		if err := sendLinuxNotification(title, cleanMessage, appIcon, n.cfg); err != nil {
+		if err := sendLinuxNotification(title, cleanMessage, appIcon, n.cfg, cwd); err != nil {
 			logging.Warn("Linux daemon notification failed, falling back to beeep: %v", err)
 			// Fall through to beeep
 		} else {
@@ -132,7 +134,7 @@ func (n *Notifier) SendDesktop(status analyzer.Status, message, sessionID string
 
 // sendWithTerminalNotifier sends notification via terminal-notifier on macOS
 // with click-to-focus support (clicking notification activates the terminal)
-func (n *Notifier) sendWithTerminalNotifier(title, message, subtitle, sessionID string, timeSensitive bool) error {
+func (n *Notifier) sendWithTerminalNotifier(title, message, subtitle, sessionID string, timeSensitive bool, cwd string) error {
 	notifierPath, err := GetTerminalNotifierPath()
 	if err != nil {
 		return fmt.Errorf("terminal-notifier not found: %w", err)
@@ -147,10 +149,10 @@ func (n *Notifier) sendWithTerminalNotifier(title, message, subtitle, sessionID 
 			logging.Debug("tmux detected, using -execute with target: %s", target)
 		} else {
 			logging.Debug("tmux detected but failed to get pane target: %v, falling back to -activate", err)
-			args = buildTerminalNotifierArgs(title, message, bundleID)
+			args = buildTerminalNotifierArgs(title, message, bundleID, cwd)
 		}
 	} else {
-		args = buildTerminalNotifierArgs(title, message, bundleID)
+		args = buildTerminalNotifierArgs(title, message, bundleID, cwd)
 	}
 
 	// Append shared options: subtitle, threadID, timeSensitive, nosound
@@ -178,21 +180,109 @@ func (n *Notifier) sendWithTerminalNotifier(title, message, subtitle, sessionID 
 }
 
 // buildTerminalNotifierArgs constructs command-line arguments for terminal-notifier.
+// When cwd is provided, uses -execute with a focus script instead of -activate.
 // Exported for testing purposes.
-func buildTerminalNotifierArgs(title, message, bundleID string) []string {
+func buildTerminalNotifierArgs(title, message, bundleID, cwd string) []string {
 	args := []string{
 		"-title", title,
 		"-message", message,
-		"-activate", bundleID,
-		// Note: -sender option removed because it conflicts with -activate on macOS Sequoia (15.x)
-		// Using -sender causes click-to-focus to stop working.
-		// Trade-off: no custom Claude icon, but click-to-focus works reliably.
+	}
+
+	// Note: -sender option removed because it conflicts with -activate on macOS Sequoia (15.x)
+	// Using -sender causes click-to-focus to stop working.
+	if cwd != "" {
+		if script := buildFocusScript(bundleID, cwd); script != "" {
+			args = append(args, "-execute", script)
+		} else {
+			args = append(args, "-activate", bundleID)
+		}
+	} else {
+		args = append(args, "-activate", bundleID)
 	}
 
 	// Add group ID to prevent notification stacking issues
 	args = append(args, "-group", fmt.Sprintf("claude-notif-%d", time.Now().UnixNano()))
 
 	return args
+}
+
+// buildFocusScript returns the shell command for -execute in terminal-notifier.
+// For VS Code: invokes the binary's focus-window subcommand (CGo AXUIElement).
+// For all other apps: uses AppleScript title search by folder name.
+// Returns "" when cwd is empty or unusable (caller should use -activate instead).
+func buildFocusScript(bundleID, cwd string) string {
+	if cwd == "" {
+		return ""
+	}
+
+	folderName := filepath.Base(cwd)
+	if folderName == "" || folderName == "." || folderName == string(filepath.Separator) {
+		return ""
+	}
+
+	if isVSCodeBundleID(bundleID) {
+		// VS Code's AppleScript dictionary doesn't support window enumeration
+		// (-1708), so AppleScript is not a viable fallback. Return "" to use
+		// plain -activate if the binary path is unavailable.
+		return buildVSCodeFocusScript(bundleID, cwd)
+	}
+
+	return buildAppleScriptFocusScript(bundleID, folderName)
+}
+
+// isVSCodeBundleID reports whether bundleID is VS Code or VS Code Insiders.
+func isVSCodeBundleID(bundleID string) bool {
+	return bundleID == "com.microsoft.VSCode" ||
+		bundleID == "com.microsoft.VSCodeInsiders"
+}
+
+// shellQuote wraps s in single quotes, escaping internal single quotes
+// using the '\” technique (end quote, literal apostrophe, resume quote).
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// buildVSCodeFocusScript builds the -execute script for VS Code.
+// Invokes the binary's focus-window subcommand which activates VS Code,
+// waits for AXWindows to populate, then raises the window matching cwd.
+// Returns "" (causing -activate fallback) if os.Executable() fails.
+func buildVSCodeFocusScript(bundleID, cwd string) string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return shellQuote(exe) + " focus-window " + shellQuote(bundleID) + " " + shellQuote(cwd)
+}
+
+// buildAppleScriptFocusScript builds the -execute script that activates an app
+// and raises the first window whose title contains folderName.
+func buildAppleScriptFocusScript(bundleID, folderName string) string {
+	safeBundleID := sanitizeForAppleScript(bundleID)
+	safeFolder := sanitizeForAppleScript(folderName)
+	return fmt.Sprintf(
+		"osascript -e 'tell application id \"%s\"' -e 'activate' -e 'set _n to \"%s\"' -e 'repeat with w in windows' -e 'if name of w contains _n then' -e 'set index of w to 1' -e 'exit repeat' -e 'end if' -e 'end repeat' -e 'end tell'",
+		safeBundleID, safeFolder,
+	)
+}
+
+// sanitizeForAppleScript escapes or removes characters that would break AppleScript
+// string literals or shell single-quote delimiters when embedded in a -execute command.
+// Single quotes are escaped using the shell '\” technique; double quotes and backslashes
+// are stripped (rare in macOS folder names; double-quoting AppleScript strings doesn't
+// support "" escaping without restructuring the script).
+func sanitizeForAppleScript(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch r {
+		case '\'':
+			b.WriteString(`'\''`)
+		case '"', '\\':
+			// strip
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // sendWithBeeep sends notification via beeep (cross-platform)
