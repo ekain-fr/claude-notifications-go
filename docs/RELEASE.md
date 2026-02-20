@@ -105,6 +105,8 @@ Description of what was added and why.
 
 ---
 
+📦 **[Installation](https://github.com/777genius/claude-notifications-go#installation)** · 🔄 **[Updating](https://github.com/777genius/claude-notifications-go#updating)**
+
 **Full Changelog**: https://github.com/777genius/claude-notifications-go/compare/vPREV...vX.Y.Z
 NOTES_EOF
 )"

@@ -99,8 +99,6 @@ curl -fsSL https://raw.githubusercontent.com/777genius/claude-notifications-go/m
 
 Then restart Claude Code to apply the new version. Your settings in `~/.claude/claude-notifications-go/config.json` are preserved across updates.
 
-> **Note:** Downgrading to v1.18 or earlier requires manually copying config back to `config/config.json` inside the plugin directory.
-
 <details>
 <summary>Manual update (if bootstrap didn't work)</summary>
 
@@ -130,7 +128,7 @@ If the binary auto-update didn't work (e.g. no internet at the time), run `/clau
 
 ### 🔔 Flexible Notifications
 - **Desktop notifications** with custom icons and sounds
-- **Click-to-focus** (macOS, Linux): Click notification to activate your terminal window
+- **Click-to-focus** (macOS, Linux): Click notification to focus the exact project window, even across multiple open editors or terminal instances
 - **Git branch in title**: See current branch like `✅ Completed main [cat]`
 - **Webhook integrations**: Slack, Discord, Telegram, Lark/Feishu, and custom endpoints
 - **Session names**: Friendly identifiers like `[cat]` for multi-session tracking

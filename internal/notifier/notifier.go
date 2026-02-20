@@ -143,15 +143,13 @@ func (n *Notifier) sendWithTerminalNotifier(title, message, subtitle, sessionID 
 	bundleID := GetTerminalBundleID(n.cfg.Notifications.Desktop.TerminalBundleID)
 
 	var args []string
-	if IsTmux() {
-		if target, err := GetTmuxPaneTarget(); err == nil {
-			args = buildTmuxNotifierArgs(title, message, target, bundleID)
-			logging.Debug("tmux detected, using -execute with target: %s", target)
-		} else {
-			logging.Debug("tmux detected but failed to get pane target: %v, falling back to -activate", err)
-			args = buildTerminalNotifierArgs(title, message, bundleID, cwd)
-		}
+	if muxArgs, muxName := detectMultiplexerArgs(title, message, bundleID); muxArgs != nil {
+		args = muxArgs
+		logging.Debug("%s detected, using multiplexer-specific -execute", muxName)
 	} else {
+		if muxName != "" {
+			logging.Debug("%s detected but target capture failed, falling back to -activate", muxName)
+		}
 		args = buildTerminalNotifierArgs(title, message, bundleID, cwd)
 	}
 

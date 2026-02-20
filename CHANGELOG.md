@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-02-20
+
+### Added
+- **Zellij click-to-focus support** — clicking a notification switches to the correct zellij tab ([#33](https://github.com/777genius/claude-notifications-go/issues/33))
+  - Detects `$ZELLIJ` / `$ZELLIJ_SESSION_NAME` environment variables
+  - Parses active tab name from `zellij action dump-layout` (KDL format)
+  - Executes `zellij -s <session> action go-to-tab-name <tab>` on notification click
+- **Multiplexer registry architecture** — extensible system for terminal multiplexer integrations
+  - Adding a new multiplexer = one file + one line in the registry
+  - `notifier.go` no longer needs changes when adding multiplexer support
+  - Priority order: tmux (first), zellij (second) — first detected wins
+- **E2E tests for zellij** — full end-to-end tests with real zellij sessions via `creack/pty`
+
+### Changed
+- **Refactored tmux integration** — tmux click-to-focus now uses the shared multiplexer registry instead of hardcoded `if IsTmux()` checks
+
 ## [1.21.0] - 2026-02-20
 
 ### Added

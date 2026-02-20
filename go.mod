@@ -3,6 +3,7 @@ module github.com/777genius/claude-notifications
 go 1.21.5
 
 require (
+	github.com/creack/pty v1.1.24
 	github.com/esiqveland/notify v0.13.3
 	github.com/gen2brain/beeep v0.11.1
 	github.com/gen2brain/malgo v0.11.24
