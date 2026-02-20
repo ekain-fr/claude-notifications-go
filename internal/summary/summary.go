@@ -167,13 +167,8 @@ func generatePlanSummary(messages []jsonl.Message, cfg *config.Config) string {
 // generateReviewSummary generates summary for review_complete status
 // Matches bash: lib/summarizer.sh lines 494-521
 func generateReviewSummary(messages []jsonl.Message, cfg *config.Config) string {
-	// TODO: Consider using getRecentAssistantMessages() for consistency
-	// Currently uses direct GetLastAssistantMessages which works for Stop/SubagentStop hooks
-	// but may pick up old messages in edge cases. Low priority since Stop hook always
-	// contains current response. See generateQuestionSummary for reference implementation.
-
-	// Look for review-related messages
-	recentMessages := jsonl.GetLastAssistantMessages(messages, ReviewMessagesWindow)
+	// Look for review-related messages from current response only
+	recentMessages := getRecentAssistantMessages(messages, ReviewMessagesWindow)
 	texts := jsonl.ExtractTextFromMessages(recentMessages)
 	combined := strings.Join(texts, " ")
 
@@ -214,13 +209,8 @@ func generateReviewSummary(messages []jsonl.Message, cfg *config.Config) string 
 // generateTaskSummary generates summary for task_complete status
 // Matches bash: lib/summarizer.sh lines 523-653
 func generateTaskSummary(messages []jsonl.Message, cfg *config.Config) string {
-	// TODO: Consider using getRecentAssistantMessages() for consistency
-	// Currently uses direct GetLastAssistantMessages which works for Stop/SubagentStop hooks
-	// but may pick up old messages in edge cases. Low priority since Stop hook always
-	// contains current response. See generateQuestionSummary for reference implementation.
-
-	// Get recent assistant messages
-	recentMessages := jsonl.GetLastAssistantMessages(messages, TaskMessagesWindow)
+	// Get recent assistant messages from current response only
+	recentMessages := getRecentAssistantMessages(messages, TaskMessagesWindow)
 	if len(recentMessages) == 0 {
 		return GetDefaultMessage(analyzer.StatusTaskComplete, cfg)
 	}
