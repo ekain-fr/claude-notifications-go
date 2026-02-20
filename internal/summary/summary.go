@@ -254,8 +254,12 @@ func generateTaskSummary(messages []jsonl.Message, cfg *config.Config) string {
 		}
 
 		if actions != "" {
-			// Combine message with actions
-			combined := messageText + ". " + actions
+			// Combine message with actions, avoiding double punctuation
+			separator := ". "
+			if strings.HasSuffix(messageText, ".") || strings.HasSuffix(messageText, "!") || strings.HasSuffix(messageText, "?") {
+				separator = " "
+			}
+			combined := messageText + separator + actions
 			return truncateText(combined, 150)
 		}
 		return truncateText(messageText, 150)

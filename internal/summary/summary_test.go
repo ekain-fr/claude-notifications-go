@@ -1425,8 +1425,59 @@ func TestGenerateTaskSummary_ShortMessage(t *testing.T) {
 		t.Error("generateTaskSummary() returned empty string")
 	}
 	// Should include short message and actions
-	if !strings.Contains(result, "Done") || !strings.Contains(result, "Wrote") {
+	if !strings.Contains(result, "Done") || !strings.Contains(result, "new") {
 		t.Logf("Result: %q (may vary)", result)
+	}
+}
+
+func TestGenerateTaskSummary_NoDuplicatePunctuation(t *testing.T) {
+	cfg := &config.Config{}
+	userTS := time.Now().Add(-5 * time.Second).Format(time.RFC3339)
+	assistantTS := time.Now().Format(time.RFC3339)
+
+	tests := []struct {
+		name    string
+		message string
+	}{
+		{"trailing dot", "All done."},
+		{"trailing exclamation", "Done!"},
+		{"trailing question", "Ready?"},
+		{"no trailing punct", "All done"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			messages := []jsonl.Message{
+				{
+					Type:      "user",
+					Timestamp: userTS,
+					Message: jsonl.MessageContent{
+						ContentString: "Do task",
+					},
+				},
+				{
+					Type:      "assistant",
+					Timestamp: assistantTS,
+					Message: jsonl.MessageContent{
+						Content: []jsonl.Content{
+							{Type: "text", Text: tt.message},
+							{Type: "tool_use", Name: "Write", Input: map[string]interface{}{"file_path": "/test.go"}},
+						},
+					},
+				},
+			}
+
+			result := generateTaskSummary(messages, cfg)
+			if strings.Contains(result, "..") {
+				t.Errorf("Double dots in result: %q", result)
+			}
+			if strings.Contains(result, "!.") {
+				t.Errorf("Exclamation+dot in result: %q", result)
+			}
+			if strings.Contains(result, "?.") {
+				t.Errorf("Question+dot in result: %q", result)
+			}
+		})
 	}
 }
 
