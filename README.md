@@ -16,13 +16,13 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 
 ## Table of Contents
 
+  - [Features](#features)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [Quick Install (Recommended)](#quick-install-recommended)
     - [Manual Install](#manual-install)
     - [Updating](#updating)
   - [Supported Notification Types](#supported-notification-types)
-  - [Features](#features)
   - [Platform Support](#platform-support)
     - [Click-to-Focus (macOS & Linux)](#click-to-focus-macos--linux)
   - [Configuration](#configuration)
@@ -34,6 +34,17 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
   - [Troubleshooting](#troubleshooting)
   - [Documentation](#documentation)
   - [License](#license)
+
+## Features
+
+- **Cross-platform**: macOS (Intel & Apple Silicon), Linux (x64 & ARM64), Windows 10+ (x64)
+- **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error
+- **Click-to-focus** (macOS, Linux): click notification to focus the exact project window and tab — Ghostty, VS Code, iTerm2, Warp, kitty, WezTerm, Alacritty, Hyper, Apple Terminal, GNOME Terminal, Konsole, Tilix, Terminator, XFCE4 Terminal, MATE Terminal
+- **Multiplexers**: tmux, zellij — click switches to the correct session/pane/tab
+- **Git branch in title**: `✅ Completed main [cat]`
+- **Sounds**: MP3/WAV/FLAC/OGG/AIFF, volume control, audio device selection
+- **Webhooks**: Slack, Discord, Telegram, Lark/Feishu, Microsoft Teams, ntfy.sh, PagerDuty, Zapier, n8n, Make, custom — with retry, circuit breaker, rate limiting ([docs](docs/webhooks/README.md))
+- **[Plugin compatibility](docs/PLUGIN_COMPATIBILITY.md)**: works with [double-shot-latte](https://github.com/obra/double-shot-latte) and other plugins that spawn background Claude instances
 
 ## Installation
 
@@ -112,17 +123,6 @@ If the binary auto-update didn't work (e.g. no internet at the time), run `/clau
 | Plan Ready | 📋 | Plan ready for approval | PreToolUse hook (ExitPlanMode) |
 | Session Limit Reached | ⏱️ | Session limit reached | Stop/SubagentStop hooks (state machine detects "Session limit reached" text in last 3 assistant messages) |
 | API Error | 🔴 | Authentication expired, rate limit, server error, connection error | Stop/SubagentStop hooks (state machine detects via `isApiErrorMessage` flag + `error` field from JSONL) |
-
-## Features
-
-- **Cross-platform**: macOS (Intel & Apple Silicon), Linux (x64 & ARM64), Windows 10+ (x64)
-- **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error
-- **Click-to-focus** (macOS, Linux): click notification to focus the exact project window and tab — Ghostty, VS Code, iTerm2, Warp, kitty, WezTerm, Alacritty, Hyper, Apple Terminal, GNOME Terminal, Konsole, Tilix, Terminator, XFCE4 Terminal, MATE Terminal
-- **Multiplexers**: tmux, zellij — click switches to the correct session/pane/tab
-- **Git branch in title**: `✅ Completed main [cat]`
-- **Sounds**: MP3/WAV/FLAC/OGG/AIFF, volume control, audio device selection
-- **Webhooks**: Slack, Discord, Telegram, Lark/Feishu, Microsoft Teams, ntfy.sh, PagerDuty, Zapier, n8n, Make, custom — with retry, circuit breaker, rate limiting ([docs](docs/webhooks/README.md))
-- **[Plugin compatibility](docs/PLUGIN_COMPATIBILITY.md)**: works with [double-shot-latte](https://github.com/obra/double-shot-latte) and other plugins that spawn background Claude instances
 
 ## Platform Support
 

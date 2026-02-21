@@ -60,6 +60,26 @@ func GenerateSessionName(sessionID string) string {
 	return allWords[index]
 }
 
+// GenerateSessionLabel generates a friendly name with session ID prefix.
+// Returns a string like "bold 06ddb8f7" for better session identification.
+func GenerateSessionLabel(sessionID string) string {
+	name := GenerateSessionName(sessionID)
+	if name == "unknown" {
+		return "unknown"
+	}
+
+	// Extract first 8 chars of UUID (before first dash)
+	prefix := sessionID
+	if idx := strings.Index(sessionID, "-"); idx != -1 {
+		prefix = sessionID[:idx]
+	}
+	if len(prefix) > 8 {
+		prefix = prefix[:8]
+	}
+
+	return name + " " + prefix
+}
+
 // hexToInt converts hex string to int (takes first 6 characters for safety)
 func hexToInt(hex string) int {
 	if len(hex) > 6 {

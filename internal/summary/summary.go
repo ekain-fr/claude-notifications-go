@@ -92,11 +92,13 @@ func GenerateFromTranscript(transcriptPath string, status analyzer.Status, cfg *
 // generateQuestionSummary generates summary for question status
 // Improved logic: extracts meaningful question text with markdown cleanup
 func generateQuestionSummary(messages []jsonl.Message, cfg *config.Config) string {
+	actions := getActionsString(messages)
+
 	// 1) Try to extract AskUserQuestion tool (with recency check)
 	question, isRecent := extractAskUserQuestion(messages)
 	if question != "" && isRecent {
 		cleaned := CleanMarkdown(question)
-		return truncateText(cleaned, 150)
+		return appendActions(truncateText(cleaned, 150), actions)
 	}
 
 	// 2) Get recent messages from current response using helper
@@ -120,7 +122,7 @@ func generateQuestionSummary(messages []jsonl.Message, cfg *config.Config) strin
 			}
 		}
 		cleaned := CleanMarkdown(shortestQuestion)
-		return truncateText(cleaned, 150)
+		return appendActions(truncateText(cleaned, 150), actions)
 	}
 
 	// Strategy B: No "?" found, take first sentence from last assistant message
@@ -130,12 +132,12 @@ func generateQuestionSummary(messages []jsonl.Message, cfg *config.Config) strin
 		// Extract first sentence
 		firstSentence := extractFirstSentence(cleaned)
 		if len(firstSentence) > 10 {
-			return truncateText(firstSentence, 150)
+			return appendActions(truncateText(firstSentence, 150), actions)
 		}
 	}
 
 	// 3) Final fallback: generic prompt
-	return "Claude needs your input to continue"
+	return appendActions("Claude needs your input to continue", actions)
 }
 
 // generatePlanSummary generates summary for plan_ready status
@@ -143,6 +145,7 @@ func generateQuestionSummary(messages []jsonl.Message, cfg *config.Config) strin
 func generatePlanSummary(messages []jsonl.Message, cfg *config.Config) string {
 	// Extract plan from ExitPlanMode tool
 	plan := extractExitPlanModePlan(messages)
+	actions := getActionsString(messages)
 
 	if plan != "" {
 		// Get first line, clean markdown
@@ -157,16 +160,18 @@ func generatePlanSummary(messages []jsonl.Message, cfg *config.Config) string {
 		}
 
 		if firstLine != "" {
-			return truncateText(firstLine, 150)
+			return appendActions(truncateText(firstLine, 150), actions)
 		}
 	}
 
-	return "Plan is ready for review"
+	return appendActions("Plan is ready for review", actions)
 }
 
 // generateReviewSummary generates summary for review_complete status
 // Matches bash: lib/summarizer.sh lines 494-521
 func generateReviewSummary(messages []jsonl.Message, cfg *config.Config) string {
+	actions := getActionsString(messages)
+
 	// Look for review-related messages from current response only
 	recentMessages := getRecentAssistantMessages(messages, ReviewMessagesWindow)
 	texts := jsonl.ExtractTextFromMessages(recentMessages)
@@ -180,7 +185,7 @@ func generateReviewSummary(messages []jsonl.Message, cfg *config.Config) string 
 			for _, text := range texts {
 				if strings.Contains(strings.ToLower(text), keyword) {
 					cleaned := CleanMarkdown(text)
-					return truncateText(cleaned, 150)
+					return appendActions(truncateText(cleaned, 150), actions)
 				}
 			}
 		}
@@ -200,10 +205,10 @@ func generateReviewSummary(messages []jsonl.Message, cfg *config.Config) string 
 		if readCount != 1 {
 			noun = "files"
 		}
-		return fmt.Sprintf("Reviewed %d %s", readCount, noun)
+		return appendActions(fmt.Sprintf("Reviewed %d %s", readCount, noun), actions)
 	}
 
-	return "Code review completed"
+	return appendActions("Code review completed", actions)
 }
 
 // generateTaskSummary generates summary for task_complete status
@@ -222,20 +227,11 @@ func generateTaskSummary(messages []jsonl.Message, cfg *config.Config) string {
 		lastMessage = texts[len(texts)-1]
 	}
 
-	// Calculate duration and count tools
-	duration := calculateDuration(messages)
-	toolCounts := countToolsByType(messages)
+	actions := getActionsString(messages)
 
-	// Build actions string
-	actions := buildActionsString(toolCounts, duration)
-
-	// If we have both message and actions, combine them
 	if lastMessage != "" {
-		// Clean markdown first
 		cleaned := CleanMarkdown(lastMessage)
 
-		// If message is short (< 150 chars), use it as-is
-		// Otherwise extract first sentence(s)
 		var messageText string
 		if len([]rune(cleaned)) < 150 {
 			messageText = cleaned
@@ -243,39 +239,16 @@ func generateTaskSummary(messages []jsonl.Message, cfg *config.Config) string {
 			messageText = extractFirstSentence(cleaned)
 		}
 
-		if actions != "" {
-			// Combine message with actions, avoiding double punctuation
-			separator := ". "
-			if strings.HasSuffix(messageText, ".") || strings.HasSuffix(messageText, "!") || strings.HasSuffix(messageText, "?") {
-				separator = " "
-			}
-			combined := messageText + separator + actions
-			return truncateText(combined, 150)
-		}
-		return truncateText(messageText, 150)
+		return appendActions(truncateText(messageText, 150), actions)
 	}
 
-	// Fallback: just actions or generic message
-	if actions != "" {
-		return actions
-	}
-
-	// Final fallback
-	toolCount := 0
-	for _, count := range toolCounts {
-		toolCount += count
-	}
-	if toolCount > 0 {
-		return fmt.Sprintf("Completed task with %d operations", toolCount)
-	}
-
-	return "Task completed successfully"
+	return appendActions("Task completed successfully", actions)
 }
 
 // generateSessionLimitSummary generates summary for session_limit_reached status
 func generateSessionLimitSummary(messages []jsonl.Message, cfg *config.Config) string {
-	// Simple message for session limit
-	return "Session limit reached. Please start a new conversation."
+	actions := getActionsString(messages)
+	return appendActions("Session limit reached. Please start a new conversation.", actions)
 }
 
 // generateAPIErrorSummary generates summary for api_error (401 authentication) status
@@ -452,6 +425,19 @@ func countToolsByType(messages []jsonl.Message) map[string]int {
 	}
 
 	return counts
+}
+
+// getActionsString calculates duration, counts tools, and returns formatted actions string
+func getActionsString(messages []jsonl.Message) string {
+	return buildActionsString(countToolsByType(messages), calculateDuration(messages))
+}
+
+// appendActions appends actions suffix to message if non-empty
+func appendActions(message, actions string) string {
+	if actions == "" {
+		return message
+	}
+	return message + " " + actions
 }
 
 // buildActionsString builds actions summary with tool counts and duration

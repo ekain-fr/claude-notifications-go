@@ -683,9 +683,12 @@ func TestGenerateFromTranscript_SessionLimitReached(t *testing.T) {
 	cfg := config.DefaultConfig()
 	result := GenerateFromTranscript(transcriptPath, analyzer.StatusSessionLimitReached, cfg)
 
-	expected := "Session limit reached. Please start a new conversation."
-	if result != expected {
-		t.Errorf("Expected %q, got %q", expected, result)
+	// Should contain the base message and duration
+	if !strings.Contains(result, "Session limit reached") {
+		t.Errorf("Expected result to contain 'Session limit reached', got %q", result)
+	}
+	if !strings.Contains(result, "⏱") {
+		t.Errorf("Expected result to contain duration, got %q", result)
 	}
 }
 

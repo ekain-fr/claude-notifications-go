@@ -69,6 +69,42 @@ func TestGenerateSessionNameFormat(t *testing.T) {
 	assert.NotEmpty(t, name)
 }
 
+func TestGenerateSessionLabel(t *testing.T) {
+	tests := []struct {
+		name      string
+		sessionID string
+		expected  string
+	}{
+		{
+			name:      "Valid UUID includes prefix",
+			sessionID: "06ddb8f7-03ff-4fdb-9fd8-5710213661b1",
+			expected:  "happy 06ddb8f7",
+		},
+		{
+			name:      "Another UUID",
+			sessionID: "73b5e210-ec1a-4294-96e4-c2aecb2e1063",
+			expected:  "zesty 73b5e210",
+		},
+		{
+			name:      "Empty session ID",
+			sessionID: "",
+			expected:  "unknown",
+		},
+		{
+			name:      "Unknown session ID",
+			sessionID: "unknown",
+			expected:  "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GenerateSessionLabel(tt.sessionID)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestHexToInt(t *testing.T) {
 	tests := []struct {
 		hex      string

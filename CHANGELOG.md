@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.24.0] - 2026-02-21
+
+### Added
+- **Session ID prefix in notification titles** — notifications now show `[bold 06ddb8f7]` instead of just `[bold]`, making it easy to distinguish sessions even when Claude Code assigns different session IDs within the same conversation (e.g. plan mode → implementation)
+- **Duration and actions for all notification types** — question, plan, review, and session limit notifications now consistently show tool counts and elapsed time (e.g. `📝 2 new  ⏱ 45s`), not just task_complete
+
+### Changed
+- Refactored summary generation: extracted `getActionsString()` and `appendActions()` helpers to eliminate duplicated duration/tool-count logic across all status types
+
 ## [1.23.0] - 2026-02-21
 
 ### Added

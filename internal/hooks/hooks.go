@@ -353,7 +353,7 @@ func (h *Handler) sendNotifications(status analyzer.Status, message, sessionID, 
 	defer errorhandler.HandlePanic()
 
 	// Add session name, git branch and folder name to message
-	sessionName := sessionname.GenerateSessionName(sessionID)
+	sessionName := sessionname.GenerateSessionLabel(sessionID)
 	gitBranch := platform.GetGitBranch(cwd)
 	folderName := filepath.Base(cwd)
 
