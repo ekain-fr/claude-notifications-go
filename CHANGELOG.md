@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-02-21
+
+### Added
+- **Ghostty click-to-focus** — clicking a notification focuses the correct Ghostty window via AXDocument (OSC 7 CWD file:// URL) ([#34](https://github.com/777genius/claude-notifications-go/pull/34))
+  - `raiseWindowByAXDocument` C function matches windows by AXDocument attribute
+  - `cwdToFileURL` converts CWD to RFC-3986-compliant file:// URL via `net/url`
+  - One-time Accessibility permission prompt on first use
+- **Retry with backoff for AX window focus** — both Ghostty and non-Ghostty paths now retry up to 3 times (150/250/400ms) instead of a single fixed sleep
+  - Best case: 150ms (was 800ms for Ghostty, 600ms for others)
+  - 3 chances to find the window instead of 1
+
+### Fixed
+- `raiseWindowByAXTitle` now checks `AXIsProcessTrusted()` and returns -1 on missing Accessibility permission instead of silently failing with "window not found"
+- `cwdToFileURL` strips trailing slash to avoid double-slash in file:// URLs
+
+### Changed
+- Split `raiseWindowByTitle` into `findSwitchAndActivate` (one-shot) + `raiseWindowByAXTitle` (retriable)
+- Updated documentation: README, Click-to-Focus guide, added Plugin Compatibility doc
+
 ## [1.22.0] - 2026-02-20
 
 ### Added
