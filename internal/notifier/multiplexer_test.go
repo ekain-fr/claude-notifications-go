@@ -6,17 +6,32 @@ import (
 )
 
 func TestDetectMultiplexerArgs_NoMux(t *testing.T) {
-	// Save and clear both env vars
+	// Save and clear all multiplexer env vars
 	oldTmux := os.Getenv("TMUX")
 	oldZellij := os.Getenv("ZELLIJ")
+	oldWezTermPane := os.Getenv("WEZTERM_PANE")
+	oldKittyWindowID := os.Getenv("KITTY_WINDOW_ID")
+	oldKittyListenOn := os.Getenv("KITTY_LISTEN_ON")
 	os.Unsetenv("TMUX")
 	os.Unsetenv("ZELLIJ")
+	os.Unsetenv("WEZTERM_PANE")
+	os.Unsetenv("KITTY_WINDOW_ID")
+	os.Unsetenv("KITTY_LISTEN_ON")
 	t.Cleanup(func() {
 		if oldTmux != "" {
 			os.Setenv("TMUX", oldTmux)
 		}
 		if oldZellij != "" {
 			os.Setenv("ZELLIJ", oldZellij)
+		}
+		if oldWezTermPane != "" {
+			os.Setenv("WEZTERM_PANE", oldWezTermPane)
+		}
+		if oldKittyWindowID != "" {
+			os.Setenv("KITTY_WINDOW_ID", oldKittyWindowID)
+		}
+		if oldKittyListenOn != "" {
+			os.Setenv("KITTY_LISTEN_ON", oldKittyListenOn)
 		}
 	})
 

@@ -16,6 +16,8 @@ type multiplexerHandler struct {
 var multiplexerHandlers = []multiplexerHandler{
 	{"tmux", IsTmux, buildTmuxClickArgs},
 	{"zellij", IsZellij, buildZellijClickArgs},
+	{"wezterm", IsWezTerm, buildWezTermClickArgs},
+	{"kitty", IsKitty, buildKittyClickArgs},
 }
 
 // detectMultiplexerArgs tries each registered multiplexer.
@@ -53,4 +55,22 @@ func buildZellijClickArgs(title, message, bundleID string) ([]string, error) {
 		return nil, err
 	}
 	return buildZellijNotifierArgs(title, message, tabName, sessionName, bundleID), nil
+}
+
+// buildWezTermClickArgs captures WezTerm pane target and builds notifier args.
+func buildWezTermClickArgs(title, message, bundleID string) ([]string, error) {
+	paneID, socketPath, err := GetWezTermPaneTarget()
+	if err != nil {
+		return nil, err
+	}
+	return buildWezTermNotifierArgs(title, message, paneID, socketPath, bundleID), nil
+}
+
+// buildKittyClickArgs captures Kitty window target and builds notifier args.
+func buildKittyClickArgs(title, message, bundleID string) ([]string, error) {
+	windowID, listenOn, err := GetKittyWindowTarget()
+	if err != nil {
+		return nil, err
+	}
+	return buildKittyNotifierArgs(title, message, windowID, listenOn, bundleID), nil
 }
