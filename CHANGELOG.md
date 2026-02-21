@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.2] - 2026-02-21
+
+### Fixed
+- **Windows: remove redundant `sh` prefix from hook commands** — Claude Code already spawns a shell for hooks; the extra `sh` was misinterpreted as a script filename on some Windows environments, causing "cannot execute binary file" ([#35](https://github.com/777genius/claude-notifications-go/pull/35))
+
 ## [1.25.1] - 2026-02-21
 
 ### Fixed
