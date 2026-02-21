@@ -75,10 +75,46 @@ run_binary() {
 }
 
 # Platform detection
+# Primary: uname -s (Git Bash, MSYS2, Cygwin)
+# Fallback: $OS env var (set to "Windows_NT" on ALL Windows systems, even non-MSYS shells)
+IS_WINDOWS=0
 case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1; detect_windows_binary ;;
-    *)                    IS_WINDOWS=0; BINARY="$SCRIPT_DIR/claude-notifications" ;;
+    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
 esac
+if [ "$IS_WINDOWS" = 0 ]; then
+    case "${OS:-}" in
+        Windows*) IS_WINDOWS=1 ;;
+    esac
+fi
+
+if [ "$IS_WINDOWS" = 1 ]; then
+    detect_windows_binary
+else
+    BINARY="$SCRIPT_DIR/claude-notifications"
+fi
+
+# Guard: if BINARY is a Git text-symlink stub (not a real symlink), resolve or invalidate it.
+# Git on Windows (core.symlinks=false) creates plain text files instead of symlinks.
+# Content is just the target name, e.g. "claude-notifications-darwin-arm64".
+if [ -f "$BINARY" ] && [ ! -L "$BINARY" ]; then
+    # Text stubs are tiny (<1KB). Skip real binaries (MB-sized) to avoid false positives.
+    _size=$(wc -c < "$BINARY" 2>/dev/null || echo 999999)
+    if [ "$_size" -lt 1024 ]; then
+        # Read first 256 bytes max (avoid reading huge files if size check is bypassed)
+        _first_line=$(head -c 256 "$BINARY" 2>/dev/null | head -n 1 | tr -d '[:space:]')
+        case "$_first_line" in
+            claude-notifications-darwin-*|claude-notifications-linux-*|claude-notifications-windows-*)
+                # Text stub detected — resolve to actual target if it exists
+                if [ -x "$SCRIPT_DIR/$_first_line" ]; then
+                    BINARY="$SCRIPT_DIR/$_first_line"
+                else
+                    # Target doesn't exist (wrong platform) — force re-install
+                    BINARY="$SCRIPT_DIR/claude-notifications-MISSING"
+                fi
+                ;;
+        esac
+    fi
+fi
 
 # Check if binary is ready (exists and executable on Unix, exists on Windows)
 binary_ok() {
@@ -128,16 +164,20 @@ fi
 if [ "$NEED_INSTALL" = 1 ]; then
     if [ "$NEED_FORCE" = 1 ]; then
         run_install --force
-        # Notify about update (shown as warning in Claude Code)
-        if binary_ok; then
-            NEW_VER=$(get_binary_version)
-            printf '{"systemMessage":"[claude-notifications] Updated to v%s"}\n' "$NEW_VER"
-        fi
     else
         run_install
-        # Notify about first install
-        if binary_ok; then
-            NEW_VER=$(get_binary_version)
+    fi
+
+    # On Windows, re-detect binary after install to prefer .exe over .bat
+    if [ "$IS_WINDOWS" = 1 ]; then
+        detect_windows_binary
+    fi
+
+    if binary_ok; then
+        NEW_VER=$(get_binary_version)
+        if [ "$NEED_FORCE" = 1 ]; then
+            printf '{"systemMessage":"[claude-notifications] Updated to v%s"}\n' "$NEW_VER"
+        else
             printf '{"systemMessage":"[claude-notifications] Installed v%s"}\n' "$NEW_VER"
         fi
     fi
