@@ -883,6 +883,11 @@ test_real_full_install() {
         return
     fi
 
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Real full install" "release binary not yet available"
+        return
+    fi
+
     setup_test_dir
 
     output=$(INSTALL_TARGET_DIR="$TEST_DIR" bash "$INSTALL_SCRIPT" 2>&1)
@@ -904,6 +909,11 @@ test_real_binary_runs() {
 
     if [ "$RUN_REAL_NETWORK" != true ]; then
         skip_test "Binary runs" "--real-network not specified"
+        return
+    fi
+
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Binary runs" "release binary not yet available"
         return
     fi
 
@@ -939,6 +949,11 @@ test_real_utilities_installed() {
         return
     fi
 
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Utilities installed" "release binary not yet available"
+        return
+    fi
+
     setup_test_dir
 
     INSTALL_TARGET_DIR="$TEST_DIR" bash "$INSTALL_SCRIPT" 2>&1 || true
@@ -967,6 +982,11 @@ test_real_terminal_notifier_macos() {
 
     if [ "$(uname)" != "Darwin" ]; then
         skip_test "terminal-notifier" "not on macOS"
+        return
+    fi
+
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "terminal-notifier" "release binary not yet available"
         return
     fi
 
@@ -1361,6 +1381,11 @@ test_hook_wrapper_real_download() {
         return
     fi
 
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Hook wrapper real download" "release binary not yet available"
+        return
+    fi
+
     setup_test_dir
 
     # Copy wrapper and install script (but NOT binary)
@@ -1386,6 +1411,11 @@ test_hook_wrapper_real_no_redownload() {
 
     if [ "$RUN_REAL_NETWORK" != true ]; then
         skip_test "Hook wrapper no re-download" "--real-network not specified"
+        return
+    fi
+
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Hook wrapper no re-download" "release binary not yet available"
         return
     fi
 
@@ -1432,6 +1462,11 @@ test_hook_wrapper_real_binary_runs() {
         return
     fi
 
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Hook wrapper binary runs" "release binary not yet available"
+        return
+    fi
+
     setup_test_dir
 
     # Copy wrapper and install script
@@ -1455,6 +1490,11 @@ test_hook_wrapper_real_concurrent_calls() {
 
     if [ "$RUN_REAL_NETWORK" != true ]; then
         skip_test "Hook wrapper concurrent calls" "--real-network not specified"
+        return
+    fi
+
+    if [ "$RELEASE_BINARY_AVAILABLE" != true ]; then
+        skip_test "Hook wrapper concurrent calls" "release binary not yet available"
         return
     fi
 
@@ -1542,6 +1582,29 @@ main() {
     test_mock_zip_corrupted
 
     if [ "$RUN_MOCK_ONLY" != true ]; then
+        # Pre-check: is the latest release binary actually available?
+        # Avoids false failures when CI runs before Release workflow finishes uploading assets.
+        RELEASE_BINARY_AVAILABLE=false
+        if [ "$RUN_REAL_NETWORK" = true ]; then
+            local _check_url="https://github.com/777genius/claude-notifications-go/releases/latest/download"
+            local _check_bin
+            case "$(uname -s)-$(uname -m)" in
+                Linux-x86_64)       _check_bin="claude-notifications-linux-amd64" ;;
+                Linux-aarch64)      _check_bin="claude-notifications-linux-arm64" ;;
+                Darwin-arm64)       _check_bin="claude-notifications-darwin-arm64" ;;
+                Darwin-x86_64)      _check_bin="claude-notifications-darwin-amd64" ;;
+                MINGW*|MSYS*|CYGWIN*) _check_bin="claude-notifications-windows-amd64.exe" ;;
+                *)                  _check_bin="claude-notifications-linux-amd64" ;;
+            esac
+            local _http_code
+            _http_code=$(curl -sL -o /dev/null -w "%{http_code}" --connect-timeout 5 "${_check_url}/${_check_bin}" 2>/dev/null || echo "000")
+            if [ "$_http_code" = "200" ]; then
+                RELEASE_BINARY_AVAILABLE=true
+            else
+                echo -e "  ${YELLOW}⚠${NC} Latest release binary not yet available (HTTP $_http_code) — download tests will be skipped"
+            fi
+        fi
+
         # Category C: Real Network Tests
         echo ""
         echo -e "${BOLD}Category C: Real Network Tests${NC}"
