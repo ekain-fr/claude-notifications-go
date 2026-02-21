@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.0] - 2026-02-21
+
+### Fixed
+- **Windows: "cannot execute binary file" on Stop hook** — Git Bash (MINGW) cannot `exec` `.bat` files directly; they require `cmd.exe` for interpretation. Added `detect_windows_binary` to prefer the native `.exe` over the `.bat` wrapper, and `run_windows_bat` to route `.bat` execution through `cmd.exe /c call`
+- **CI race condition** — real-network E2E tests now skip gracefully when the latest release binary isn't yet available (happens when CI and Release workflow run in parallel)
+
 ## [1.24.0] - 2026-02-21
 
 ### Added
