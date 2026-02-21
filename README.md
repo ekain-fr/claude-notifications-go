@@ -1,4 +1,4 @@
-# Claude Notifications (plugin)
+<h1 align="center">Claude Notifications (plugin)</h1>
 
 [![Ubuntu CI](https://github.com/777genius/claude-notifications-go/workflows/Ubuntu%20CI/badge.svg)](https://github.com/777genius/claude-notifications-go/actions)
 [![macOS CI](https://github.com/777genius/claude-notifications-go/workflows/macOS%20CI/badge.svg)](https://github.com/777genius/claude-notifications-go/actions)
@@ -15,12 +15,12 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
 
 ## Table of Contents
 
-  - [Supported Notification Types](#supported-notification-types)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites)
     - [Quick Install (Recommended)](#quick-install-recommended)
     - [Manual Install](#manual-install)
     - [Updating](#updating)
+  - [Supported Notification Types](#supported-notification-types)
   - [Features](#features)
   - [Platform Support](#platform-support)
     - [Click-to-Focus (macOS & Linux)](#click-to-focus-macos--linux)
@@ -34,23 +34,11 @@ Smart notifications for Claude Code with click-to-focus, git branch display, and
   - [Documentation](#documentation)
   - [License](#license)
 
-## Supported Notification Types
-
-| Status | Icon | Description | Trigger |
-|--------|------|-------------|---------|
-| Task Complete | ✅ | Main task completed | Stop/SubagentStop hooks (state machine detects active tools like Write/Edit/Bash, or ExitPlanMode followed by tool usage) |
-| Review Complete | 🔍 | Code review finished | Stop/SubagentStop hooks (state machine detects only read-like tools: Read/Grep/Glob with no active tools, plus long text response >200 chars) |
-| Question | ❓ | Claude has a question | PreToolUse hook (AskUserQuestion) OR Notification hook |
-| Plan Ready | 📋 | Plan ready for approval | PreToolUse hook (ExitPlanMode) |
-| Session Limit Reached | ⏱️ | Session limit reached | Stop/SubagentStop hooks (state machine detects "Session limit reached" text in last 3 assistant messages) |
-| API Error | 🔴 | Authentication expired, rate limit, server error, connection error | Stop/SubagentStop hooks (state machine detects via `isApiErrorMessage` flag + `error` field from JSONL) |
-
-
 ## Installation
 
 ### Prerequisites
 
-- Claude Code (tested on v2.0.15)
+- Claude Code
 - **Windows users:** Git Bash (included with [Git for Windows](https://git-scm.com/download/win)) or WSL
 - **macOS/Linux users:** No additional software required
 
@@ -113,57 +101,27 @@ If the binary auto-update didn't work (e.g. no internet at the time), run `/clau
 
 </details>
 
+## Supported Notification Types
+
+| Status | Icon | Description | Trigger |
+|--------|------|-------------|---------|
+| Task Complete | ✅ | Main task completed | Stop/SubagentStop hooks (state machine detects active tools like Write/Edit/Bash, or ExitPlanMode followed by tool usage) |
+| Review Complete | 🔍 | Code review finished | Stop/SubagentStop hooks (state machine detects only read-like tools: Read/Grep/Glob with no active tools, plus long text response >200 chars) |
+| Question | ❓ | Claude has a question | PreToolUse hook (AskUserQuestion) OR Notification hook |
+| Plan Ready | 📋 | Plan ready for approval | PreToolUse hook (ExitPlanMode) |
+| Session Limit Reached | ⏱️ | Session limit reached | Stop/SubagentStop hooks (state machine detects "Session limit reached" text in last 3 assistant messages) |
+| API Error | 🔴 | Authentication expired, rate limit, server error, connection error | Stop/SubagentStop hooks (state machine detects via `isApiErrorMessage` flag + `error` field from JSONL) |
 
 ## Features
 
-### 🖥️ Cross-Platform Support
-- **macOS** (Intel & Apple Silicon), **Linux** (x64 & ARM64), **Windows 10+** (x64)
-- Works in PowerShell, CMD, Git Bash, or WSL
-- Pre-built binaries included - no compilation needed
-
-### 🧠 Smart Detection
-- **Operations count** File edits, file creates, ran commands + total time
+- **Cross-platform**: macOS (Intel & Apple Silicon), Linux (x64 & ARM64), Windows 10+ (x64)
 - **6 notification types**: Task Complete, Review Complete, Question, Plan Ready, Session Limit, API Error
-- **PreToolUse integration** for instant alerts when Claude asks questions or creates plans
-
-### 🔔 Flexible Notifications
-- **Desktop notifications** with custom icons and sounds
-- **Click-to-focus** (macOS, Linux): Click notification to focus the exact project window, even across multiple open editors or terminal instances
-- **Git branch in title**: See current branch like `✅ Completed main [cat]`
-- **Webhook integrations**: Slack, Discord, Telegram, Lark/Feishu, and custom endpoints
-- **Session names**: Friendly identifiers like `[cat]` for multi-session tracking
-
-### 🔊 Audio Customization
-- **Multi-format support**: MP3, WAV, FLAC, OGG, AIFF
-- **Volume control**: 0-100% customizable volume
-- **Audio device selection**: Route notifications to a specific output device
-- **System sounds**: Use macOS/Linux system sounds (optional)
-- **Sound preview**: Test sounds before choosing with `/claude-notifications-go:settings`
-
-### 🌐 Enterprise-Grade Webhooks
-- **Retry logic** with exponential backoff
-- **Circuit breaker** for fault tolerance
-- **Rate limiting** with token bucket algorithm
-- **Rich formatting** with platform-specific embeds/attachments
-- **→ [Complete Webhook Documentation](docs/webhooks/README.md)**
-
-### 🤝 Plugin Compatibility
-
-Compatible with other Claude Code plugins that spawn background Claude instances:
-
-- **[double-shot-latte](https://github.com/obra/double-shot-latte)** - Auto-continue plugin that uses a background Claude instance for context evaluation. Notifications are automatically suppressed for the background judge process (via `CLAUDE_HOOK_JUDGE_MODE=true` environment variable).
-
-If you're developing a plugin that spawns background Claude instances and want to suppress notifications, set `CLAUDE_HOOK_JUDGE_MODE=true` in the environment before invoking Claude.
-
-To disable this behavior and receive notifications even in judge mode, set in `~/.claude/claude-notifications-go/config.json`:
-
-```json
-{
-  "notifications": {
-    "respectJudgeMode": false
-  }
-}
-```
+- **Click-to-focus** (macOS, Linux): click notification to focus the exact project window and tab — Ghostty, VS Code, iTerm2, Warp, kitty, WezTerm, Alacritty, Hyper, Apple Terminal, GNOME Terminal, Konsole, Tilix, Terminator, XFCE4 Terminal, MATE Terminal
+- **Multiplexers**: tmux, zellij — click switches to the correct session/pane/tab
+- **Git branch in title**: `✅ Completed main [cat]`
+- **Sounds**: MP3/WAV/FLAC/OGG/AIFF, volume control, audio device selection
+- **Webhooks**: Slack, Discord, Telegram, Lark/Feishu, Microsoft Teams, ntfy.sh, PagerDuty, Zapier, n8n, Make, custom — with retry, circuit breaker, rate limiting ([docs](docs/webhooks/README.md))
+- **[Plugin compatibility](docs/PLUGIN_COMPATIBILITY.md)**: works with [double-shot-latte](https://github.com/obra/double-shot-latte) and other plugins that spawn background Claude instances
 
 ## Platform Support
 
@@ -186,12 +144,32 @@ To disable this behavior and receive notifications even in judge mode, set in `~
 
 ### Click-to-Focus (macOS & Linux)
 
-Clicking a notification activates your terminal window. Auto-detects terminal and platform:
+Clicking a notification activates your terminal window. Auto-detects terminal and platform.
 
-- **macOS** — via `terminal-notifier` with bundle ID detection. VS Code requires Accessibility and Screen Recording permissions (other terminals need neither); both are requested automatically on first use.
-- **Linux** — via D-Bus daemon with fallback chain (GNOME extension, Shell Eval, wlrctl, kdotool, xdotool)
+**macOS** — via AX API / AppleScript with bundle ID detection:
 
-Enabled by default. See **[Click-to-Focus Guide](docs/CLICK_TO_FOCUS.md)** for configuration and supported terminals.
+| Terminal | Focus method |
+|----------|-------------|
+| Ghostty | AXDocument (OSC 7 CWD) |
+| VS Code / Insiders | AXTitle (focus-window subcommand) |
+| iTerm2, Warp, kitty, WezTerm, Alacritty, Hyper, Apple Terminal | AppleScript (window title) |
+| Any other (custom `terminalBundleId`) | AppleScript (window title) |
+
+**Linux** — via D-Bus daemon with automatic compositor detection:
+
+| Terminal | Supported compositors |
+|----------|----------------------|
+| VS Code | GNOME, KDE, Sway, X11 |
+| GNOME Terminal, Konsole, Alacritty, kitty, WezTerm, Tilix, Terminator, XFCE4 Terminal, MATE Terminal | GNOME, KDE, Sway, X11 |
+| Any other | Fallback by name |
+
+Linux focus methods (tried in order): GNOME extension, GNOME Shell Eval, GNOME FocusApp, wlrctl (Sway/wlroots), kdotool (KDE), xdotool (X11).
+
+**Multiplexers** (both platforms): tmux, zellij — click switches to the correct pane/tab.
+
+**Windows** — notifications only, no click-to-focus.
+
+See **[Click-to-Focus Guide](docs/CLICK_TO_FOCUS.md)** for configuration details.
 
 ## Configuration
 
@@ -405,6 +383,8 @@ See **[Troubleshooting Guide](docs/troubleshooting.md)** for common issues:
 - **[Interactive Sound Preview](docs/interactive-sound-preview.md)** - Preview sounds during setup
   - Interactive sound selection
   - Preview before choosing
+
+- **[Plugin Compatibility](docs/PLUGIN_COMPATIBILITY.md)** - Integration with other Claude Code plugins
 
 - **[Troubleshooting](docs/troubleshooting.md)** - Common install/runtime issues
   - Ubuntu 24.04 `EXDEV` during `/plugin install` (TMPDIR workaround)

@@ -24,29 +24,53 @@ In `~/.claude/claude-notifications-go/config.json`:
 
 ## macOS
 
-- Automatically detects your terminal (iTerm2, Warp, Terminal.app, kitty, Ghostty, WezTerm, Alacritty)
-- Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:init`)
-- Falls back to standard notifications if terminal-notifier is unavailable
-- Supported terminals: Terminal.app, iTerm2, Warp, kitty, Ghostty, WezTerm, Alacritty, Hyper, VS Code
-- To find your terminal's bundle ID: `osascript -e 'id of app "YourTerminal"'`
+Auto-detects your terminal via `TERM_PROGRAM` / `__CFBundleIdentifier`. Uses `terminal-notifier` (auto-installed via `/claude-notifications-go:init`).
 
-### VS Code window focus
+| Terminal | Focus method |
+|----------|-------------|
+| Ghostty | AXDocument (OSC 7 CWD) with retry backoff |
+| VS Code / Insiders | AXTitle via focus-window subcommand |
+| iTerm2, Warp, kitty, WezTerm, Alacritty, Hyper, Apple Terminal | AppleScript (window title matching) |
+| Any other (custom `terminalBundleId`) | AppleScript (window title matching) |
 
-VS Code requires two macOS permissions that other terminals do not:
+To find your terminal's bundle ID: `osascript -e 'id of app "YourTerminal"'`
 
-- **Accessibility** — to enumerate and raise windows via the AX API (other terminals use AppleScript against their own scripting dictionary)
-- **Screen Recording** — to read window titles across Spaces (macOS 10.15+); without it the correct window cannot be identified
+### Permissions
 
-Both are requested automatically on first use via macOS system dialogs. Without Screen Recording, clicking a notification still activates VS Code but raises whichever window was last active rather than the project-specific one.
+**Ghostty** requires **Accessibility** permission — to enumerate windows via AXDocument. Prompted automatically on first use.
+
+**VS Code** requires two permissions:
+
+- **Accessibility** — to enumerate and raise windows via the AX API
+- **Screen Recording** — to read window titles across Spaces (macOS 10.15+)
+
+Both are requested automatically on first use. Without Screen Recording, clicking a notification still activates VS Code but raises whichever window was last active rather than the project-specific one.
+
+Other terminals use AppleScript and require no additional permissions.
 
 ## Linux
 
-- Uses a background daemon with D-Bus for notification actions
-- Automatically detects your terminal and desktop environment
-- Supports multiple focus methods with fallback chain:
-  - **GNOME**: `activate-window-by-title` extension, Shell Eval, FocusApp (GNOME 45+)
-  - **KDE Plasma**: `kdotool`
-  - **Sway / wlroots**: `wlrctl`
-  - **X11** (XFCE, MATE, Cinnamon, i3, bspwm): `xdotool`
-- Supported terminals: GNOME Terminal, Konsole, Alacritty, kitty, WezTerm, Tilix, Terminator, XFCE4 Terminal, MATE Terminal, VS Code
-- Falls back to standard notifications if no focus tool is available
+Uses a background D-Bus daemon. Auto-detects terminal and compositor.
+
+| Terminal | Supported compositors |
+|----------|----------------------|
+| VS Code | GNOME, KDE, Sway, X11 |
+| GNOME Terminal, Konsole, Alacritty, kitty, WezTerm, Tilix, Terminator, XFCE4 Terminal, MATE Terminal | GNOME, KDE, Sway, X11 |
+| Any other | Fallback by name |
+
+Focus methods (tried in order):
+
+1. **GNOME**: `activate-window-by-title` extension, Shell Eval, FocusApp (GNOME 45+)
+2. **Sway / wlroots**: `wlrctl`
+3. **KDE Plasma**: `kdotool`
+4. **X11** (XFCE, MATE, Cinnamon, i3, bspwm): `xdotool`
+
+Falls back to standard notifications if no focus tool is available.
+
+## Multiplexers
+
+On both macOS and Linux, click-to-focus supports **tmux** and **zellij** — clicking a notification switches to the correct session/pane/tab.
+
+## Windows
+
+Notifications only, no click-to-focus.
