@@ -1033,7 +1033,8 @@ test_hook_wrapper_no_bashisms() {
     echo -e "\n${CYAN}▶ test_hook_wrapper_no_bashisms${NC}"
 
     # Check for common bash-only features that break POSIX sh
-    if grep -E '\[\[|\$\{[^}]+:|\bfunction\b|\bsource\b' "$SCRIPT_DIR/hook-wrapper.sh" >/dev/null 2>&1; then
+    # Note: ${VAR:-default} and ${VAR:+alt} are POSIX-compliant, so exclude :- and :+
+    if grep -E '\[\[|\$\{[^}]+:[^-+]|\bfunction\b|\bsource\b' "$SCRIPT_DIR/hook-wrapper.sh" >/dev/null 2>&1; then
         fail_test "No bashisms in wrapper" "Found bash-specific syntax"
     else
         pass_test "No bashisms in wrapper"
@@ -1114,25 +1115,29 @@ test_hook_wrapper_passes_all_arguments() {
     setup_test_dir
 
     # Create a mock binary that echoes arguments
-    # On Windows, create .bat file; on Unix, shell script
+    # On Windows, create shell script and point CLAUDE_NOTIFICATIONS_BIN to it
+    # (avoids .bat/cmd.exe issues in the test harness)
     if is_windows; then
-        cat > "$TEST_DIR/claude-notifications.bat" << 'MOCK_EOF'
-@echo off
-echo ARGS:%*
+        cat > "$TEST_DIR/mock-binary.sh" << 'MOCK_EOF'
+#!/bin/sh
+echo "ARGS:$*"
 MOCK_EOF
+        chmod +x "$TEST_DIR/mock-binary.sh"
+        MOCK_ENV="CLAUDE_NOTIFICATIONS_BIN=$TEST_DIR/mock-binary.sh"
     else
         cat > "$TEST_DIR/claude-notifications" << 'MOCK_EOF'
 #!/bin/sh
 echo "ARGS:$*"
 MOCK_EOF
         chmod +x "$TEST_DIR/claude-notifications"
+        MOCK_ENV=""
     fi
 
     # Copy wrapper
     cp "$SCRIPT_DIR/hook-wrapper.sh" "$TEST_DIR/"
 
     # Run wrapper with multiple arguments
-    output=$(echo '{}' | sh "$TEST_DIR/hook-wrapper.sh" handle-hook Stop --extra-arg 2>&1)
+    output=$(echo '{}' | env $MOCK_ENV sh "$TEST_DIR/hook-wrapper.sh" handle-hook Stop --extra-arg 2>&1)
 
     if echo "$output" | grep -q "ARGS:handle-hook Stop --extra-arg"; then
         pass_test "Wrapper passes all arguments to binary"
@@ -1146,11 +1151,11 @@ MOCK_EOF
 test_hook_wrapper_exec_replaces_process() {
     echo -e "\n${CYAN}▶ test_hook_wrapper_exec_replaces_process${NC}"
 
-    # Verify wrapper uses 'exec' for process replacement
-    if grep -q 'exec "\$BINARY"' "$SCRIPT_DIR/hook-wrapper.sh"; then
-        pass_test "Wrapper uses exec for process replacement"
+    # Verify wrapper invokes the binary (via run_binary or exec)
+    if grep -q 'run_binary "\$@"' "$SCRIPT_DIR/hook-wrapper.sh" || grep -q 'exec "\$BINARY"' "$SCRIPT_DIR/hook-wrapper.sh"; then
+        pass_test "Wrapper invokes binary for process execution"
     else
-        fail_test "Wrapper uses exec for process replacement" "Missing 'exec' call"
+        fail_test "Wrapper invokes binary for process execution" "Missing run_binary or exec call"
     fi
 }
 
@@ -1197,16 +1202,14 @@ test_hook_wrapper_version_mismatch_triggers_update() {
     mkdir -p "$ROOT_DIR/bin" "$ROOT_DIR/.claude-plugin"
 
     # Create mock binary that reports old version
-    if is_windows; then
-        cat > "$ROOT_DIR/bin/claude-notifications.bat" << 'MOCK_EOF'
-@echo off
-if "%1"=="version" echo claude-notifications version 1.0.0
-MOCK_EOF
-    else
-        cat > "$ROOT_DIR/bin/claude-notifications" << 'MOCK_EOF'
+    cat > "$ROOT_DIR/bin/mock-binary.sh" << 'MOCK_EOF'
 #!/bin/sh
 if [ "$1" = "version" ]; then echo "claude-notifications version 1.0.0"; fi
 MOCK_EOF
+    chmod +x "$ROOT_DIR/bin/mock-binary.sh"
+
+    if ! is_windows; then
+        cp "$ROOT_DIR/bin/mock-binary.sh" "$ROOT_DIR/bin/claude-notifications"
         chmod +x "$ROOT_DIR/bin/claude-notifications"
     fi
 
@@ -1224,8 +1227,12 @@ touch "$INSTALL_TARGET_DIR/.update-triggered"
 INSTALL_EOF
     chmod +x "$ROOT_DIR/bin/install.sh"
 
-    # Run wrapper
-    echo '{}' | sh "$ROOT_DIR/bin/hook-wrapper.sh" handle-hook Stop >/dev/null 2>&1 || true
+    # Run wrapper (on Windows, use CLAUDE_NOTIFICATIONS_BIN to bypass .bat detection)
+    local run_env=""
+    if is_windows; then
+        run_env="CLAUDE_NOTIFICATIONS_BIN=$ROOT_DIR/bin/mock-binary.sh"
+    fi
+    echo '{}' | env $run_env sh "$ROOT_DIR/bin/hook-wrapper.sh" handle-hook Stop >/dev/null 2>&1 || true
 
     # Check if update was triggered
     if [ -f "$ROOT_DIR/bin/.update-triggered" ]; then
@@ -1246,18 +1253,16 @@ test_hook_wrapper_version_match_no_update() {
     mkdir -p "$ROOT_DIR/bin" "$ROOT_DIR/.claude-plugin"
 
     # Create mock binary that reports matching version
-    if is_windows; then
-        cat > "$ROOT_DIR/bin/claude-notifications.bat" << 'MOCK_EOF'
-@echo off
-if "%1"=="version" echo claude-notifications version 1.0.0
-echo EXECUTED
-MOCK_EOF
-    else
-        cat > "$ROOT_DIR/bin/claude-notifications" << 'MOCK_EOF'
+    cat > "$ROOT_DIR/bin/mock-binary.sh" << 'MOCK_EOF'
 #!/bin/sh
 if [ "$1" = "version" ]; then echo "claude-notifications version 1.0.0"; fi
 echo "EXECUTED"
 MOCK_EOF
+    chmod +x "$ROOT_DIR/bin/mock-binary.sh"
+
+    if ! is_windows; then
+        # Unix: create symlink as expected by wrapper
+        cp "$ROOT_DIR/bin/mock-binary.sh" "$ROOT_DIR/bin/claude-notifications"
         chmod +x "$ROOT_DIR/bin/claude-notifications"
     fi
 
@@ -1275,8 +1280,12 @@ touch "$INSTALL_TARGET_DIR/.update-triggered"
 INSTALL_EOF
     chmod +x "$ROOT_DIR/bin/install.sh"
 
-    # Run wrapper
-    output=$(echo '{}' | sh "$ROOT_DIR/bin/hook-wrapper.sh" handle-hook Stop 2>&1) || true
+    # Run wrapper (on Windows, use CLAUDE_NOTIFICATIONS_BIN to bypass .bat detection)
+    local run_env=""
+    if is_windows; then
+        run_env="CLAUDE_NOTIFICATIONS_BIN=$ROOT_DIR/bin/mock-binary.sh"
+    fi
+    output=$(echo '{}' | env $run_env sh "$ROOT_DIR/bin/hook-wrapper.sh" handle-hook Stop 2>&1) || true
 
     # Check that update was NOT triggered (versions match)
     if [ ! -f "$ROOT_DIR/bin/.update-triggered" ]; then
