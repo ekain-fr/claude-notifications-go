@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0] - 2026-02-24
+
+### Added
+- **Suppress notifications for subagents** — new `suppressForSubagents` config option (default: `true`) detects subagent sessions by `/subagents/` in `transcript_path` and suppresses notifications from both Stop and SubagentStop hooks. Covers in-process subagents, teammates, and Task tool completions
+
+### Fixed
+- **Cooldown `0` was impossible to set** — `ApplyDefaults()` could not distinguish "not configured" from explicit `0`, silently overwriting it with `12`. Changed `suppressQuestionAfterTaskCompleteSeconds` and `suppressQuestionAfterAnyNotificationSeconds` from `int` to `*int` so `null` = default, `0` = disabled ([#37](https://github.com/777genius/claude-notifications-go/issues/37))
+- **`permission_prompt` notifications never fired** — `suppressQuestionAfterAnyNotificationSeconds` default of `12` was too aggressive, suppressing mid-task question notifications. Changed default to `0` (disabled). `suppressQuestionAfterTaskCompleteSeconds` (`12s`) remains sufficient for duplicate protection
+- **Validate both cooldown fields** — `Validate()` now checks `suppressQuestionAfterAnyNotificationSeconds` for negative values (previously only checked `suppressQuestionAfterTaskCompleteSeconds`)
+
 ## [1.25.2] - 2026-02-21
 
 ### Fixed

@@ -506,8 +506,8 @@ func TestHandler_EarlyDuplicateCheck(t *testing.T) {
 func TestHandler_QuestionCooldownAfterTaskComplete(t *testing.T) {
 	cfg := &config.Config{
 		Notifications: config.NotificationsConfig{
-			Desktop:                                     config.DesktopConfig{Enabled: true},
-			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(3),
+			Desktop:                                  config.DesktopConfig{Enabled: true},
+			SuppressQuestionAfterTaskCompleteSeconds: intPtr(3),
 			SuppressQuestionAfterAnyNotificationSeconds: intPtr(0), // Disable "any notification" cooldown for this test
 		},
 		Statuses: map[string]config.StatusInfo{
