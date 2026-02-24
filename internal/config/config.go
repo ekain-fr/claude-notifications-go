@@ -130,7 +130,7 @@ func DefaultConfig() *Config {
 				},
 			},
 			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(12),
-			SuppressQuestionAfterAnyNotificationSeconds: intPtr(12),
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(0),
 		},
 		Statuses: map[string]StatusInfo{
 			"task_complete": {
@@ -332,12 +332,12 @@ func (c *Config) ApplyDefaults() {
 		c.Notifications.Webhook.Headers = make(map[string]string)
 	}
 
-	// Cooldown defaults (nil = not set in config, apply default of 12s)
+	// Cooldown defaults (nil = not set in config, apply defaults)
 	if c.Notifications.SuppressQuestionAfterTaskCompleteSeconds == nil {
 		c.Notifications.SuppressQuestionAfterTaskCompleteSeconds = intPtr(12)
 	}
 	if c.Notifications.SuppressQuestionAfterAnyNotificationSeconds == nil {
-		c.Notifications.SuppressQuestionAfterAnyNotificationSeconds = intPtr(12)
+		c.Notifications.SuppressQuestionAfterAnyNotificationSeconds = intPtr(0) // Disabled by default
 	}
 
 	// Status defaults
@@ -434,10 +434,10 @@ func (c *Config) GetSuppressQuestionAfterTaskCompleteSeconds() int {
 }
 
 // GetSuppressQuestionAfterAnyNotificationSeconds returns the cooldown in seconds
-// after any notification before question notifications are allowed (default: 12)
+// after any notification before question notifications are allowed (default: 0 = disabled)
 func (c *Config) GetSuppressQuestionAfterAnyNotificationSeconds() int {
 	if c.Notifications.SuppressQuestionAfterAnyNotificationSeconds == nil {
-		return 12
+		return 0 // Disabled by default
 	}
 	return *c.Notifications.SuppressQuestionAfterAnyNotificationSeconds
 }

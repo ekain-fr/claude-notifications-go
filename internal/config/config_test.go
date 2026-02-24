@@ -548,7 +548,7 @@ func TestApplyDefaults_PreservesZeroCooldown(t *testing.T) {
 }
 
 func TestApplyDefaults_SetsDefaultForNilCooldown(t *testing.T) {
-	// nil (not set in config) should get default 12
+	// nil (not set in config) should get defaults
 	cfg := &Config{
 		Notifications: NotificationsConfig{
 			// Both fields are nil (not set)
@@ -558,15 +558,15 @@ func TestApplyDefaults_SetsDefaultForNilCooldown(t *testing.T) {
 	cfg.ApplyDefaults()
 
 	assert.Equal(t, intPtr(12), cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
-	assert.Equal(t, intPtr(12), cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds)
+	assert.Equal(t, intPtr(0), cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds) // Disabled by default
 }
 
 func TestGetCooldownSeconds_Defaults(t *testing.T) {
 	cfg := &Config{}
 
-	// nil should return default 12
+	// nil should return defaults
 	assert.Equal(t, 12, cfg.GetSuppressQuestionAfterTaskCompleteSeconds())
-	assert.Equal(t, 12, cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
+	assert.Equal(t, 0, cfg.GetSuppressQuestionAfterAnyNotificationSeconds()) // Disabled by default
 }
 
 func TestGetCooldownSeconds_Zero(t *testing.T) {
