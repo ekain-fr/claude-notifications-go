@@ -755,6 +755,228 @@ func TestHandler_SubagentStop_EnabledInConfig(t *testing.T) {
 	}
 }
 
+// === SuppressForSubagents Tests ===
+
+func TestHandler_Stop_SuppressedForSubagentTranscript(t *testing.T) {
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop: config.DesktopConfig{Enabled: true},
+			// SuppressForSubagents: nil = default true
+		},
+		Statuses: map[string]config.StatusInfo{
+			"task_complete": {Title: "Task Complete"},
+		},
+	}
+
+	handler, mockNotif, _ := newTestHandler(t, cfg)
+
+	// Create transcript in a subagents directory
+	tmpDir := t.TempDir()
+	subagentDir := filepath.Join(tmpDir, "projects", "subagents", "agent-123")
+	if err := os.MkdirAll(subagentDir, 0755); err != nil {
+		t.Fatalf("failed to create subagent dir: %v", err)
+	}
+
+	transcriptPath := filepath.Join(subagentDir, "transcript.jsonl")
+	messages := buildTranscriptWithTools([]string{"Write"}, 300)
+	data, _ := json.Marshal(messages[0])
+	data2, _ := json.Marshal(messages[1])
+	if err := os.WriteFile(transcriptPath, append(append(data, '\n'), append(data2, '\n')...), 0644); err != nil {
+		t.Fatalf("failed to write transcript: %v", err)
+	}
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID:      "test-suppress-subagent-1",
+		TranscriptPath: transcriptPath,
+		CWD:            "/test",
+	})
+
+	err := handler.HandleHook("Stop", hookData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should NOT send notification (subagent path detected, suppress by default)
+	if mockNotif.wasCalled() {
+		t.Error("expected NO notification for subagent transcript in Stop hook (suppressForSubagents default true)")
+	}
+}
+
+func TestHandler_Stop_NotSuppressedWhenSuppressForSubagentsDisabled(t *testing.T) {
+	suppressForSubagents := false
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop:              config.DesktopConfig{Enabled: true},
+			SuppressForSubagents: &suppressForSubagents,
+		},
+		Statuses: map[string]config.StatusInfo{
+			"task_complete": {Title: "Task Complete"},
+		},
+	}
+
+	handler, mockNotif, _ := newTestHandler(t, cfg)
+
+	// Create transcript in a subagents directory
+	tmpDir := t.TempDir()
+	subagentDir := filepath.Join(tmpDir, "projects", "subagents", "agent-456")
+	if err := os.MkdirAll(subagentDir, 0755); err != nil {
+		t.Fatalf("failed to create subagent dir: %v", err)
+	}
+
+	transcriptPath := filepath.Join(subagentDir, "transcript.jsonl")
+	messages := buildTranscriptWithTools([]string{"Write"}, 300)
+	data, _ := json.Marshal(messages[0])
+	data2, _ := json.Marshal(messages[1])
+	if err := os.WriteFile(transcriptPath, append(append(data, '\n'), append(data2, '\n')...), 0644); err != nil {
+		t.Fatalf("failed to write transcript: %v", err)
+	}
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID:      "test-suppress-subagent-disabled-1",
+		TranscriptPath: transcriptPath,
+		CWD:            "/test",
+	})
+
+	err := handler.HandleHook("Stop", hookData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should send notification (suppressForSubagents disabled)
+	if !mockNotif.wasCalled() {
+		t.Error("expected notification when suppressForSubagents is false")
+	}
+}
+
+func TestHandler_Stop_NotSuppressedForNonSubagentTranscript(t *testing.T) {
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop: config.DesktopConfig{Enabled: true},
+			// SuppressForSubagents: nil = default true
+		},
+		Statuses: map[string]config.StatusInfo{
+			"task_complete": {Title: "Task Complete"},
+		},
+	}
+
+	handler, mockNotif, _ := newTestHandler(t, cfg)
+
+	// Create transcript in a normal (non-subagent) directory
+	transcriptPath := createTempTranscript(t,
+		buildTranscriptWithTools([]string{"Write"}, 300))
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID:      "test-suppress-normal-1",
+		TranscriptPath: transcriptPath,
+		CWD:            "/test",
+	})
+
+	err := handler.HandleHook("Stop", hookData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should send notification (not a subagent path)
+	if !mockNotif.wasCalled() {
+		t.Error("expected notification for non-subagent transcript")
+	}
+}
+
+func TestHandler_SubagentStop_SuppressedForSubagentTranscript(t *testing.T) {
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop:              config.DesktopConfig{Enabled: true},
+			NotifyOnSubagentStop: true, // Enable SubagentStop notifications
+			// SuppressForSubagents: nil = default true (suppress by path)
+		},
+		Statuses: map[string]config.StatusInfo{
+			"task_complete": {Title: "Task Complete"},
+		},
+	}
+
+	handler, mockNotif, _ := newTestHandler(t, cfg)
+
+	// Create transcript in a subagents directory
+	tmpDir := t.TempDir()
+	subagentDir := filepath.Join(tmpDir, "projects", "subagents", "agent-789")
+	if err := os.MkdirAll(subagentDir, 0755); err != nil {
+		t.Fatalf("failed to create subagent dir: %v", err)
+	}
+
+	transcriptPath := filepath.Join(subagentDir, "transcript.jsonl")
+	messages := buildTranscriptWithTools([]string{"Write"}, 300)
+	data, _ := json.Marshal(messages[0])
+	data2, _ := json.Marshal(messages[1])
+	if err := os.WriteFile(transcriptPath, append(append(data, '\n'), append(data2, '\n')...), 0644); err != nil {
+		t.Fatalf("failed to write transcript: %v", err)
+	}
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID:      "test-suppress-subagent-stop-1",
+		TranscriptPath: transcriptPath,
+		CWD:            "/test",
+	})
+
+	err := handler.HandleHook("SubagentStop", hookData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should NOT send notification even with notifyOnSubagentStop=true
+	// because suppressForSubagents takes priority for subagent paths
+	if mockNotif.wasCalled() {
+		t.Error("expected NO notification for subagent transcript in SubagentStop (suppressForSubagents default true)")
+	}
+}
+
+func TestIsSubagentTranscript(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "subagent path unix",
+			path:     "/home/user/.claude/projects/foo/subagents/agent-123/transcript.jsonl",
+			expected: true,
+		},
+		{
+			name:     "subagent path macOS",
+			path:     "/Users/dev/.claude/projects/bar/subagents/abc/transcript.jsonl",
+			expected: true,
+		},
+		{
+			name:     "normal transcript path",
+			path:     "/home/user/.claude/projects/foo/transcript.jsonl",
+			expected: false,
+		},
+		{
+			name:     "empty path",
+			path:     "",
+			expected: false,
+		},
+		{
+			name:     "subagents in filename only",
+			path:     "/home/user/subagents-transcript.jsonl",
+			expected: false,
+		},
+		{
+			name:     "subagents as directory segment",
+			path:     "/tmp/claude/subagents/nested/deep/transcript.jsonl",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSubagentTranscript(tt.path)
+			if result != tt.expected {
+				t.Errorf("isSubagentTranscript(%q) = %v, want %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
 // === Unknown Hook Event ===
 
 func TestHandler_UnknownHookEvent(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/777genius/claude-notifications/internal/analyzer"
@@ -146,6 +147,11 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 			return err
 		}
 	case "Stop":
+		// Check if this is a subagent transcript and should be suppressed
+		if h.cfg.ShouldSuppressForSubagents() && isSubagentTranscript(hookData.TranscriptPath) {
+			logging.Debug("Stop: subagent transcript detected (%s), suppressing (config: suppressForSubagents)", hookData.TranscriptPath)
+			return nil
+		}
 		// Analyze the transcript to determine status
 		status, err = h.handleStopEvent(&hookData)
 		if err != nil {
@@ -155,9 +161,15 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 		// State files have TTL and will be cleaned up automatically
 		defer h.cleanupOldLocks()
 	case "SubagentStop":
-		// Check config: should we notify on subagent completion?
+		// Check config: should we suppress subagent notifications?
+		// First check path-based suppression (covers subagents and teammates)
+		if h.cfg.ShouldSuppressForSubagents() && isSubagentTranscript(hookData.TranscriptPath) {
+			logging.Debug("SubagentStop: subagent transcript detected (%s), suppressing (config: suppressForSubagents)", hookData.TranscriptPath)
+			return nil
+		}
+		// Then check the legacy notifyOnSubagentStop flag
 		if !h.cfg.Notifications.NotifyOnSubagentStop {
-			logging.Debug("SubagentStop: notifications disabled (config), skipping")
+			logging.Debug("SubagentStop: notifications disabled (config: notifyOnSubagentStop), skipping")
 			return nil
 		}
 		// If enabled, handle like Stop
@@ -384,6 +396,14 @@ func (h *Handler) sendNotifications(status analyzer.Status, message, sessionID, 
 	} else {
 		logging.Debug("Webhook notification disabled for status: %s", statusStr)
 	}
+}
+
+// isSubagentTranscript checks if the transcript path indicates a subagent session.
+// Claude Code stores subagent transcripts in paths containing /subagents/ segment.
+func isSubagentTranscript(transcriptPath string) bool {
+	// Normalize path separators for cross-platform compatibility
+	normalized := filepath.ToSlash(transcriptPath)
+	return strings.Contains(normalized, "/subagents/")
 }
 
 // cleanupOldLocks cleans up old lock and state files but preserves session state for cooldown

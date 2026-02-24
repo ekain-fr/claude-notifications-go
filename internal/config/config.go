@@ -22,9 +22,10 @@ type NotificationsConfig struct {
 	Webhook                                     WebhookConfig `json:"webhook"`
 	SuppressQuestionAfterTaskCompleteSeconds    int           `json:"suppressQuestionAfterTaskCompleteSeconds"`
 	SuppressQuestionAfterAnyNotificationSeconds int           `json:"suppressQuestionAfterAnyNotificationSeconds"`
-	NotifyOnSubagentStop                        bool          `json:"notifyOnSubagentStop"` // Send notifications when subagents (Task tool) complete, default: false
-	NotifyOnTextResponse                        *bool         `json:"notifyOnTextResponse"` // Send notifications for text-only responses (no tools), default: true
-	RespectJudgeMode                            *bool         `json:"respectJudgeMode"`     // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
+	NotifyOnSubagentStop                        bool          `json:"notifyOnSubagentStop"`                        // Send notifications when subagents (Task tool) complete, default: false
+	SuppressForSubagents                        *bool         `json:"suppressForSubagents"`                        // Suppress notifications when transcript_path contains /subagents/, default: true
+	NotifyOnTextResponse                        *bool         `json:"notifyOnTextResponse"`                        // Send notifications for text-only responses (no tools), default: true
+	RespectJudgeMode                            *bool         `json:"respectJudgeMode"`                            // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
 }
 
 // DesktopConfig represents desktop notification settings
@@ -421,6 +422,15 @@ func (c *Config) ShouldNotifyOnTextResponse() bool {
 		return true // Default: notify on text responses
 	}
 	return *c.Notifications.NotifyOnTextResponse
+}
+
+// ShouldSuppressForSubagents returns true if notifications should be suppressed
+// when transcript_path contains /subagents/ (default: true)
+func (c *Config) ShouldSuppressForSubagents() bool {
+	if c.Notifications.SuppressForSubagents == nil {
+		return true // Default: suppress subagent notifications
+	}
+	return *c.Notifications.SuppressForSubagents
 }
 
 // ShouldRespectJudgeMode returns true if CLAUDE_HOOK_JUDGE_MODE=true env var should suppress notifications (default: true)
