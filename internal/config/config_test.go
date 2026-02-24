@@ -26,7 +26,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.True(t, cfg.Notifications.Desktop.Enabled)
 	assert.True(t, cfg.Notifications.Desktop.Sound)
 	assert.False(t, cfg.Notifications.Webhook.Enabled)
-	assert.Equal(t, 12, cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
+	assert.Equal(t, intPtr(12), cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
 
 	// Check statuses
 	assert.Contains(t, cfg.Statuses, "task_complete")
@@ -73,7 +73,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.False(t, cfg.Notifications.Desktop.Enabled)
 	assert.True(t, cfg.Notifications.Webhook.Enabled)
 	assert.Equal(t, "slack", cfg.Notifications.Webhook.Preset)
-	assert.Equal(t, 10, cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
+	assert.Equal(t, intPtr(10), cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
 }
 
 func TestLoadConfigNotExists(t *testing.T) {
@@ -361,7 +361,7 @@ func TestApplyDefaults(t *testing.T) {
 						Sound:   false, // Preserved
 						Volume:  0.5,   // Preserved
 					},
-					SuppressQuestionAfterTaskCompleteSeconds: 12, // Default
+					SuppressQuestionAfterTaskCompleteSeconds: intPtr(12), // Default
 				},
 			},
 		},
@@ -394,7 +394,7 @@ func TestApplyDefaults(t *testing.T) {
 			tt.cfg.ApplyDefaults()
 
 			// Check key fields are set
-			if tt.cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds == 0 {
+			if tt.cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds == nil {
 				t.Errorf("SuppressQuestionAfterTaskCompleteSeconds should be set to default")
 			}
 			if len(tt.cfg.Statuses) == 0 {
@@ -522,11 +522,108 @@ func TestValidate_InvalidVolume(t *testing.T) {
 
 func TestValidate_NegativeCooldown(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds = -1
+	cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds = intPtr(-1)
 
 	err := cfg.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "suppressQuestionAfterTaskCompleteSeconds must be >= 0")
+}
+
+// === Tests for cooldown zero-value fix (issue #37) ===
+
+func TestApplyDefaults_PreservesZeroCooldown(t *testing.T) {
+	// Setting cooldown to 0 should mean "disabled", not "use default 12"
+	cfg := &Config{
+		Notifications: NotificationsConfig{
+			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(0),
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(0),
+		},
+	}
+
+	cfg.ApplyDefaults()
+
+	// 0 should be preserved, NOT overwritten with 12
+	assert.Equal(t, intPtr(0), cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
+	assert.Equal(t, intPtr(0), cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds)
+}
+
+func TestApplyDefaults_SetsDefaultForNilCooldown(t *testing.T) {
+	// nil (not set in config) should get default 12
+	cfg := &Config{
+		Notifications: NotificationsConfig{
+			// Both fields are nil (not set)
+		},
+	}
+
+	cfg.ApplyDefaults()
+
+	assert.Equal(t, intPtr(12), cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds)
+	assert.Equal(t, intPtr(12), cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds)
+}
+
+func TestGetCooldownSeconds_Defaults(t *testing.T) {
+	cfg := &Config{}
+
+	// nil should return default 12
+	assert.Equal(t, 12, cfg.GetSuppressQuestionAfterTaskCompleteSeconds())
+	assert.Equal(t, 12, cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
+}
+
+func TestGetCooldownSeconds_Zero(t *testing.T) {
+	cfg := &Config{
+		Notifications: NotificationsConfig{
+			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(0),
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(0),
+		},
+	}
+
+	// 0 means disabled
+	assert.Equal(t, 0, cfg.GetSuppressQuestionAfterTaskCompleteSeconds())
+	assert.Equal(t, 0, cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
+}
+
+func TestGetCooldownSeconds_CustomValues(t *testing.T) {
+	cfg := &Config{
+		Notifications: NotificationsConfig{
+			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(5),
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(30),
+		},
+	}
+
+	assert.Equal(t, 5, cfg.GetSuppressQuestionAfterTaskCompleteSeconds())
+	assert.Equal(t, 30, cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
+}
+
+func TestValidate_NegativeCooldownForAnyNotification(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds = intPtr(-1)
+
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "suppressQuestionAfterAnyNotificationSeconds must be >= 0")
+}
+
+func TestLoadConfig_ZeroCooldownPreserved(t *testing.T) {
+	// Simulate loading config with explicit 0 values
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	configJSON := `{
+		"notifications": {
+			"suppressQuestionAfterTaskCompleteSeconds": 0,
+			"suppressQuestionAfterAnyNotificationSeconds": 0
+		}
+	}`
+
+	err := os.WriteFile(configPath, []byte(configJSON), 0644)
+	require.NoError(t, err)
+
+	cfg, err := Load(configPath)
+	require.NoError(t, err)
+
+	// 0 must be preserved after load + ApplyDefaults
+	assert.Equal(t, 0, cfg.GetSuppressQuestionAfterTaskCompleteSeconds())
+	assert.Equal(t, 0, cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
 }
 
 // === Tests for Click-to-Focus settings ===

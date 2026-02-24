@@ -204,7 +204,7 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 
 	// Check cooldown for question status BEFORE updating notification time
 	if status == analyzer.StatusQuestion {
-		logging.Debug("Checking question cooldown: cooldownSeconds=%d", h.cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds)
+		logging.Debug("Checking question cooldown: cooldownSeconds=%d", h.cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
 
 		// Load state to log its contents
 		sessionState, stateErr := h.stateMgr.Load(hookData.SessionID)
@@ -220,7 +220,7 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 		// First, check if we should suppress question after ANY notification (not just task_complete)
 		suppressAfterAny, err := h.stateMgr.ShouldSuppressQuestionAfterAnyNotification(
 			hookData.SessionID,
-			h.cfg.Notifications.SuppressQuestionAfterAnyNotificationSeconds,
+			h.cfg.GetSuppressQuestionAfterAnyNotificationSeconds(),
 		)
 		if err != nil {
 			logging.Warn("Failed to check cooldown after any notification: %v", err)
@@ -235,7 +235,7 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 		// Also check legacy cooldown after task_complete
 		suppress, err := h.stateMgr.ShouldSuppressQuestion(
 			hookData.SessionID,
-			h.cfg.Notifications.SuppressQuestionAfterTaskCompleteSeconds,
+			h.cfg.GetSuppressQuestionAfterTaskCompleteSeconds(),
 		)
 		if err != nil {
 			logging.Warn("Failed to check cooldown: %v", err)

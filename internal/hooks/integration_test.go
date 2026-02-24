@@ -29,7 +29,7 @@ func TestE2E_FullNotificationCycle(t *testing.T) {
 		Notifications: config.NotificationsConfig{
 			Desktop: config.DesktopConfig{Enabled: true},
 			Webhook: config.WebhookConfig{Enabled: false},
-			SuppressQuestionAfterAnyNotificationSeconds: 5, // 5s suppression window
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(5), // 5s suppression window
 		},
 		Statuses: map[string]config.StatusInfo{
 			"plan_ready":    {Title: "Plan Ready"},
@@ -323,7 +323,7 @@ func TestE2E_ConcurrentSessions(t *testing.T) {
 		Notifications: config.NotificationsConfig{
 			Desktop: config.DesktopConfig{Enabled: true},
 			Webhook: config.WebhookConfig{Enabled: false},
-			SuppressQuestionAfterAnyNotificationSeconds: 0, // Disabled for concurrent test
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(0), // Disabled for concurrent test
 		},
 		Statuses: map[string]config.StatusInfo{
 			"plan_ready":    {Title: "Plan Ready"},

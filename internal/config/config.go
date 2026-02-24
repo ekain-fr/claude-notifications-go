@@ -20,8 +20,8 @@ type Config struct {
 type NotificationsConfig struct {
 	Desktop                                     DesktopConfig `json:"desktop"`
 	Webhook                                     WebhookConfig `json:"webhook"`
-	SuppressQuestionAfterTaskCompleteSeconds    int           `json:"suppressQuestionAfterTaskCompleteSeconds"`
-	SuppressQuestionAfterAnyNotificationSeconds int           `json:"suppressQuestionAfterAnyNotificationSeconds"`
+	SuppressQuestionAfterTaskCompleteSeconds    *int          `json:"suppressQuestionAfterTaskCompleteSeconds"`
+	SuppressQuestionAfterAnyNotificationSeconds *int          `json:"suppressQuestionAfterAnyNotificationSeconds"`
 	NotifyOnSubagentStop                        bool          `json:"notifyOnSubagentStop"`                        // Send notifications when subagents (Task tool) complete, default: false
 	SuppressForSubagents                        *bool         `json:"suppressForSubagents"`                        // Suppress notifications when transcript_path contains /subagents/, default: true
 	NotifyOnTextResponse                        *bool         `json:"notifyOnTextResponse"`                        // Send notifications for text-only responses (no tools), default: true
@@ -82,6 +82,11 @@ type StatusInfo struct {
 	Sound   string `json:"sound"`
 }
 
+// intPtr returns a pointer to the given int value
+func intPtr(v int) *int {
+	return &v
+}
+
 // DefaultConfig returns a config with sensible defaults
 func DefaultConfig() *Config {
 	// Get plugin root from environment, fallback to current directory
@@ -124,8 +129,8 @@ func DefaultConfig() *Config {
 					RequestsPerMinute: 10,
 				},
 			},
-			SuppressQuestionAfterTaskCompleteSeconds:    12,
-			SuppressQuestionAfterAnyNotificationSeconds: 12,
+			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(12),
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(12),
 		},
 		Statuses: map[string]StatusInfo{
 			"task_complete": {
@@ -327,12 +332,12 @@ func (c *Config) ApplyDefaults() {
 		c.Notifications.Webhook.Headers = make(map[string]string)
 	}
 
-	// Cooldown defaults
-	if c.Notifications.SuppressQuestionAfterTaskCompleteSeconds == 0 {
-		c.Notifications.SuppressQuestionAfterTaskCompleteSeconds = 12
+	// Cooldown defaults (nil = not set in config, apply default of 12s)
+	if c.Notifications.SuppressQuestionAfterTaskCompleteSeconds == nil {
+		c.Notifications.SuppressQuestionAfterTaskCompleteSeconds = intPtr(12)
 	}
-	if c.Notifications.SuppressQuestionAfterAnyNotificationSeconds == 0 {
-		c.Notifications.SuppressQuestionAfterAnyNotificationSeconds = 12
+	if c.Notifications.SuppressQuestionAfterAnyNotificationSeconds == nil {
+		c.Notifications.SuppressQuestionAfterAnyNotificationSeconds = intPtr(12)
 	}
 
 	// Status defaults
@@ -387,9 +392,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("chat_id is required for Telegram webhook")
 	}
 
-	// Validate cooldown
-	if c.Notifications.SuppressQuestionAfterTaskCompleteSeconds < 0 {
+	// Validate cooldowns (both fields, if explicitly set)
+	if c.Notifications.SuppressQuestionAfterTaskCompleteSeconds != nil && *c.Notifications.SuppressQuestionAfterTaskCompleteSeconds < 0 {
 		return fmt.Errorf("suppressQuestionAfterTaskCompleteSeconds must be >= 0")
+	}
+	if c.Notifications.SuppressQuestionAfterAnyNotificationSeconds != nil && *c.Notifications.SuppressQuestionAfterAnyNotificationSeconds < 0 {
+		return fmt.Errorf("suppressQuestionAfterAnyNotificationSeconds must be >= 0")
 	}
 
 	return nil
@@ -414,6 +422,24 @@ func (c *Config) IsWebhookEnabled() bool {
 // IsAnyNotificationEnabled returns true if at least one notification method is enabled
 func (c *Config) IsAnyNotificationEnabled() bool {
 	return c.IsDesktopEnabled() || c.IsWebhookEnabled()
+}
+
+// GetSuppressQuestionAfterTaskCompleteSeconds returns the cooldown in seconds
+// after task completion before question notifications are allowed (default: 12)
+func (c *Config) GetSuppressQuestionAfterTaskCompleteSeconds() int {
+	if c.Notifications.SuppressQuestionAfterTaskCompleteSeconds == nil {
+		return 12
+	}
+	return *c.Notifications.SuppressQuestionAfterTaskCompleteSeconds
+}
+
+// GetSuppressQuestionAfterAnyNotificationSeconds returns the cooldown in seconds
+// after any notification before question notifications are allowed (default: 12)
+func (c *Config) GetSuppressQuestionAfterAnyNotificationSeconds() int {
+	if c.Notifications.SuppressQuestionAfterAnyNotificationSeconds == nil {
+		return 12
+	}
+	return *c.Notifications.SuppressQuestionAfterAnyNotificationSeconds
 }
 
 // ShouldNotifyOnTextResponse returns true if notifications should be sent for text-only responses (default: true)

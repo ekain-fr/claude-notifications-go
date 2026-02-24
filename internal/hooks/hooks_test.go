@@ -403,7 +403,7 @@ func TestHandler_Notification_SuppressedAfterExitPlanMode(t *testing.T) {
 	cfg := &config.Config{
 		Notifications: config.NotificationsConfig{
 			Desktop: config.DesktopConfig{Enabled: true},
-			SuppressQuestionAfterAnyNotificationSeconds: 60, // 60s suppression window
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(60), // 60s suppression window
 		},
 		Statuses: map[string]config.StatusInfo{
 			"plan_ready": {Title: "Plan Ready"},
@@ -506,8 +506,9 @@ func TestHandler_EarlyDuplicateCheck(t *testing.T) {
 func TestHandler_QuestionCooldownAfterTaskComplete(t *testing.T) {
 	cfg := &config.Config{
 		Notifications: config.NotificationsConfig{
-			Desktop:                                  config.DesktopConfig{Enabled: true},
-			SuppressQuestionAfterTaskCompleteSeconds: 3,
+			Desktop:                                     config.DesktopConfig{Enabled: true},
+			SuppressQuestionAfterTaskCompleteSeconds:    intPtr(3),
+			SuppressQuestionAfterAnyNotificationSeconds: intPtr(0), // Disable "any notification" cooldown for this test
 		},
 		Statuses: map[string]config.StatusInfo{
 			"task_complete": {Title: "Task Complete"},
@@ -1573,6 +1574,10 @@ func TestHandleHookCallsWebhookShutdown(t *testing.T) {
 
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func intPtr(v int) *int {
+	return &v
 }
 
 // TestHandler_StatusDisabled_SkipsDesktopNotification verifies that when a status
