@@ -1591,8 +1591,10 @@ main() {
     test_mock_zip_corrupted
 
     if [ "$RUN_MOCK_ONLY" != true ]; then
-        # Pre-check: is the latest release binary actually available?
+        # Pre-check: is the latest release binary actually available AND matches our version?
         # Avoids false failures when CI runs before Release workflow finishes uploading assets.
+        # Race condition: pre-check may pass (old release), but by the time install.sh runs,
+        # /releases/latest may have switched to the new release (without binaries yet).
         RELEASE_BINARY_AVAILABLE=false
         if [ "$RUN_REAL_NETWORK" = true ]; then
             local _check_url="https://github.com/777genius/claude-notifications-go/releases/latest/download"
@@ -1605,12 +1607,28 @@ main() {
                 MINGW*|MSYS*|CYGWIN*) _check_bin="claude-notifications-windows-amd64.exe" ;;
                 *)                  _check_bin="claude-notifications-linux-amd64" ;;
             esac
-            local _http_code
-            _http_code=$(curl -sL -o /dev/null -w "%{http_code}" --connect-timeout 5 "${_check_url}/${_check_bin}" 2>/dev/null || echo "000")
-            if [ "$_http_code" = "200" ]; then
-                RELEASE_BINARY_AVAILABLE=true
+
+            # Step 1: Check that latest release version matches our plugin.json version
+            # This prevents the race where /releases/latest switches mid-test
+            local _our_version=""
+            local _plugin_json="$SCRIPT_DIR/../.claude-plugin/plugin.json"
+            if [ -f "$_plugin_json" ]; then
+                _our_version=$(grep '"version"' "$_plugin_json" | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+            fi
+            local _latest_tag=""
+            _latest_tag=$(curl -sI -o /dev/null -w "%{redirect_url}" --connect-timeout 5 "https://github.com/777genius/claude-notifications-go/releases/latest" 2>/dev/null | sed 's|.*/tag/v||')
+
+            if [ -n "$_our_version" ] && [ -n "$_latest_tag" ] && [ "$_our_version" != "$_latest_tag" ]; then
+                echo -e "  ${YELLOW}⚠${NC} Release version mismatch: ours=v${_our_version}, latest=v${_latest_tag} — download tests will be skipped"
             else
-                echo -e "  ${YELLOW}⚠${NC} Latest release binary not yet available (HTTP $_http_code) — download tests will be skipped"
+                # Step 2: Check that the binary is actually downloadable
+                local _http_code
+                _http_code=$(curl -sL -o /dev/null -w "%{http_code}" --connect-timeout 5 "${_check_url}/${_check_bin}" 2>/dev/null || echo "000")
+                if [ "$_http_code" = "200" ]; then
+                    RELEASE_BINARY_AVAILABLE=true
+                else
+                    echo -e "  ${YELLOW}⚠${NC} Latest release binary not yet available (HTTP $_http_code) — download tests will be skipped"
+                fi
             fi
         fi
 
