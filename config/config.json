@@ -18,7 +18,8 @@
     },
     "suppressQuestionAfterTaskCompleteSeconds": 12,
     "suppressQuestionAfterAnyNotificationSeconds": 0,
-    "suppressForSubagents": true
+    "suppressForSubagents": true,
+    "suppressFilters": []
   },
   "statuses": {
     "task_complete": {

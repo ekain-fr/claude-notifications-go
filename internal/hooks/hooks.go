@@ -369,6 +369,12 @@ func (h *Handler) sendNotifications(status analyzer.Status, message, sessionID, 
 	gitBranch := platform.GetGitBranch(cwd)
 	folderName := filepath.Base(cwd)
 
+	// Check suppress-filters before sending any notifications
+	if h.cfg.ShouldFilter(string(status), gitBranch, folderName) {
+		logging.Debug("Notification suppressed by filter: status=%s branch=%q folder=%s", status, gitBranch, folderName)
+		return
+	}
+
 	// Format: "[sessionname|branch folder] message" or "[sessionname folder] message"
 	var enhancedMessage string
 	if gitBranch != "" {
