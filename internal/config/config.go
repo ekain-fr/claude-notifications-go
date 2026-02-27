@@ -558,6 +558,9 @@ func (c *Config) IsStatusWebhookEnabled(status string) bool {
 // When true, the notification should be suppressed entirely (both desktop and webhook).
 func (c *Config) ShouldFilter(status, gitBranch, folder string) bool {
 	for i := range c.Notifications.SuppressFilters {
+		if !c.Notifications.SuppressFilters[i].HasConditions() {
+			continue
+		}
 		if c.Notifications.SuppressFilters[i].Matches(status, gitBranch, folder) {
 			return true
 		}
