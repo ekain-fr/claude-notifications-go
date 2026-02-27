@@ -19,7 +19,14 @@
     "suppressQuestionAfterTaskCompleteSeconds": 12,
     "suppressQuestionAfterAnyNotificationSeconds": 0,
     "suppressForSubagents": true,
-    "suppressFilters": []
+    "suppressFilters": [
+      {
+        "name": "Suppress ClaudeProbe completions (remote-control)",
+        "status": "task_complete",
+        "gitBranch": "",
+        "folder": "ClaudeProbe"
+      }
+    ]
   },
   "statuses": {
     "task_complete": {
