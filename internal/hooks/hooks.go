@@ -202,6 +202,16 @@ func (h *Handler) HandleHook(hookEvent string, input io.Reader) error {
 	logging.Debug("Lock acquired, proceeding with notification")
 	// Note: Lock is NOT released - it ages out naturally after 2s to prevent rapid duplicates
 
+	// Check suppress-filters early — before any state mutations (cooldowns, dedup)
+	{
+		gitBranch := platform.GetGitBranch(hookData.CWD)
+		folderName := filepath.Base(hookData.CWD)
+		if h.cfg.ShouldFilter(string(status), gitBranch, folderName) {
+			logging.Debug("Notification suppressed by filter: status=%s branch=%q folder=%s", status, gitBranch, folderName)
+			return nil
+		}
+	}
+
 	// Check cooldown for question status BEFORE updating notification time
 	if status == analyzer.StatusQuestion {
 		logging.Debug("Checking question cooldown: cooldownSeconds=%d", h.cfg.GetSuppressQuestionAfterAnyNotificationSeconds())
@@ -368,12 +378,6 @@ func (h *Handler) sendNotifications(status analyzer.Status, message, sessionID, 
 	sessionName := sessionname.GenerateSessionLabel(sessionID)
 	gitBranch := platform.GetGitBranch(cwd)
 	folderName := filepath.Base(cwd)
-
-	// Check suppress-filters before sending any notifications
-	if h.cfg.ShouldFilter(string(status), gitBranch, folderName) {
-		logging.Debug("Notification suppressed by filter: status=%s branch=%q folder=%s", status, gitBranch, folderName)
-		return
-	}
 
 	// Format: "[sessionname|branch folder] message" or "[sessionname folder] message"
 	var enhancedMessage string

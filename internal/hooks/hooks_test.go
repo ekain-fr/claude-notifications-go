@@ -1847,6 +1847,7 @@ func TestHandler_SuppressFilter_MatchingFilter_SkipsNotification(t *testing.T) {
 	cfg := &config.Config{
 		Notifications: config.NotificationsConfig{
 			Desktop: config.DesktopConfig{Enabled: true},
+			Webhook: config.WebhookConfig{Enabled: true, URL: "http://localhost/test"},
 			SuppressFilters: []config.SuppressFilter{
 				{
 					Name:      "Suppress ClaudeProbe completions",
