@@ -1187,3 +1187,257 @@ func TestLoadFromPluginRoot_OldPathMalformed_ReturnsDefault(t *testing.T) {
 	assert.NotNil(t, cfg)
 	assert.True(t, cfg.Notifications.Desktop.Enabled, "should return defaults for corrupted old config")
 }
+
+// === Tests for suppress-filters ===
+
+func TestSuppressFilter_Matches(t *testing.T) {
+	tests := []struct {
+		name      string
+		filter    SuppressFilter
+		status    string
+		gitBranch string
+		folder    string
+		want      bool
+	}{
+		{
+			name:      "all fields match",
+			filter:    SuppressFilter{Status: stringPtr("task_complete"), GitBranch: stringPtr(""), Folder: stringPtr("ClaudeProbe")},
+			status:    "task_complete",
+			gitBranch: "",
+			folder:    "ClaudeProbe",
+			want:      true,
+		},
+		{
+			name:      "status mismatch",
+			filter:    SuppressFilter{Status: stringPtr("task_complete"), GitBranch: stringPtr(""), Folder: stringPtr("ClaudeProbe")},
+			status:    "question",
+			gitBranch: "",
+			folder:    "ClaudeProbe",
+			want:      false,
+		},
+		{
+			name:      "branch mismatch",
+			filter:    SuppressFilter{Status: stringPtr("task_complete"), GitBranch: stringPtr(""), Folder: stringPtr("ClaudeProbe")},
+			status:    "task_complete",
+			gitBranch: "main",
+			folder:    "ClaudeProbe",
+			want:      false,
+		},
+		{
+			name:      "folder mismatch",
+			filter:    SuppressFilter{Status: stringPtr("task_complete"), GitBranch: stringPtr(""), Folder: stringPtr("ClaudeProbe")},
+			status:    "task_complete",
+			gitBranch: "",
+			folder:    "my-project",
+			want:      false,
+		},
+		{
+			name:      "nil status matches any status",
+			filter:    SuppressFilter{GitBranch: stringPtr(""), Folder: stringPtr("ClaudeProbe")},
+			status:    "question",
+			gitBranch: "",
+			folder:    "ClaudeProbe",
+			want:      true,
+		},
+		{
+			name:      "nil branch matches any branch",
+			filter:    SuppressFilter{Status: stringPtr("task_complete"), Folder: stringPtr("ClaudeProbe")},
+			status:    "task_complete",
+			gitBranch: "dev",
+			folder:    "ClaudeProbe",
+			want:      true,
+		},
+		{
+			name:      "nil folder matches any folder",
+			filter:    SuppressFilter{Status: stringPtr("task_complete"), GitBranch: stringPtr("main")},
+			status:    "task_complete",
+			gitBranch: "main",
+			folder:    "anything",
+			want:      true,
+		},
+		{
+			name:      "empty branch matches no-git-repo",
+			filter:    SuppressFilter{GitBranch: stringPtr("")},
+			status:    "task_complete",
+			gitBranch: "",
+			folder:    "test",
+			want:      true,
+		},
+		{
+			name:      "empty branch does not match actual branch",
+			filter:    SuppressFilter{GitBranch: stringPtr("")},
+			status:    "task_complete",
+			gitBranch: "main",
+			folder:    "test",
+			want:      false,
+		},
+		{
+			name:      "status-only filter",
+			filter:    SuppressFilter{Status: stringPtr("api_error")},
+			status:    "api_error",
+			gitBranch: "main",
+			folder:    "my-project",
+			want:      true,
+		},
+		{
+			name:      "folder-only filter",
+			filter:    SuppressFilter{Folder: stringPtr("scratch")},
+			status:    "question",
+			gitBranch: "dev",
+			folder:    "scratch",
+			want:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.filter.Matches(tt.status, tt.gitBranch, tt.folder)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSuppressFilter_HasConditions(t *testing.T) {
+	assert.False(t, (&SuppressFilter{}).HasConditions(), "empty filter has no conditions")
+	assert.False(t, (&SuppressFilter{Name: "just a name"}).HasConditions(), "name-only has no conditions")
+	assert.True(t, (&SuppressFilter{Status: stringPtr("task_complete")}).HasConditions())
+	assert.True(t, (&SuppressFilter{GitBranch: stringPtr("")}).HasConditions())
+	assert.True(t, (&SuppressFilter{Folder: stringPtr("test")}).HasConditions())
+}
+
+func TestConfig_ShouldFilter(t *testing.T) {
+	cfg := &Config{
+		Notifications: NotificationsConfig{
+			SuppressFilters: []SuppressFilter{
+				{Name: "rule1", Status: stringPtr("task_complete"), GitBranch: stringPtr(""), Folder: stringPtr("ClaudeProbe")},
+				{Name: "rule2", Folder: stringPtr("scratch")},
+			},
+		},
+	}
+
+	// Rule 1 matches
+	assert.True(t, cfg.ShouldFilter("task_complete", "", "ClaudeProbe"))
+	// Rule 2 matches
+	assert.True(t, cfg.ShouldFilter("question", "dev", "scratch"))
+	// Neither matches
+	assert.False(t, cfg.ShouldFilter("task_complete", "main", "my-project"))
+	// Partial match on rule 1 (wrong folder)
+	assert.False(t, cfg.ShouldFilter("task_complete", "", "other-project"))
+}
+
+func TestConfig_ShouldFilter_EmptyFilters(t *testing.T) {
+	cfg := DefaultConfig()
+	// No filters configured — should never filter
+	assert.False(t, cfg.ShouldFilter("task_complete", "", "ClaudeProbe"))
+	assert.False(t, cfg.ShouldFilter("question", "main", "my-project"))
+}
+
+func TestConfig_Validate_SuppressFilters(t *testing.T) {
+	tests := []struct {
+		name    string
+		filters []SuppressFilter
+		wantErr string
+	}{
+		{
+			name:    "valid filter with all fields",
+			filters: []SuppressFilter{{Status: stringPtr("task_complete"), GitBranch: stringPtr(""), Folder: stringPtr("test")}},
+		},
+		{
+			name:    "valid filter with status only",
+			filters: []SuppressFilter{{Status: stringPtr("question")}},
+		},
+		{
+			name:    "valid filter with folder only",
+			filters: []SuppressFilter{{Folder: stringPtr("scratch")}},
+		},
+		{
+			name:    "empty filter rejected",
+			filters: []SuppressFilter{{}},
+			wantErr: "suppressFilters[0]: must have at least one condition",
+		},
+		{
+			name:    "name-only filter rejected",
+			filters: []SuppressFilter{{Name: "just a name"}},
+			wantErr: "suppressFilters[0]: must have at least one condition",
+		},
+		{
+			name:    "invalid status rejected",
+			filters: []SuppressFilter{{Status: stringPtr("bogus")}},
+			wantErr: `suppressFilters[0]: invalid status "bogus"`,
+		},
+		{
+			name: "second filter invalid",
+			filters: []SuppressFilter{
+				{Status: stringPtr("task_complete")},
+				{Status: stringPtr("not_a_status")},
+			},
+			wantErr: `suppressFilters[1]: invalid status "not_a_status"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultConfig()
+			cfg.Notifications.SuppressFilters = tt.filters
+			err := cfg.Validate()
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestLoadConfig_WithSuppressFilters(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	configJSON := `{
+		"notifications": {
+			"desktop": {"enabled": true},
+			"suppressFilters": [
+				{
+					"name": "Suppress ClaudeProbe completions",
+					"status": "task_complete",
+					"gitBranch": "",
+					"folder": "ClaudeProbe"
+				},
+				{
+					"folder": "scratch"
+				}
+			]
+		}
+	}`
+
+	err := os.WriteFile(configPath, []byte(configJSON), 0644)
+	require.NoError(t, err)
+
+	cfg, err := Load(configPath)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Notifications.SuppressFilters, 2)
+
+	// First filter
+	f0 := cfg.Notifications.SuppressFilters[0]
+	assert.Equal(t, "Suppress ClaudeProbe completions", f0.Name)
+	require.NotNil(t, f0.Status)
+	assert.Equal(t, "task_complete", *f0.Status)
+	require.NotNil(t, f0.GitBranch)
+	assert.Equal(t, "", *f0.GitBranch)
+	require.NotNil(t, f0.Folder)
+	assert.Equal(t, "ClaudeProbe", *f0.Folder)
+
+	// Second filter
+	f1 := cfg.Notifications.SuppressFilters[1]
+	assert.Nil(t, f1.Status)
+	assert.Nil(t, f1.GitBranch)
+	require.NotNil(t, f1.Folder)
+	assert.Equal(t, "scratch", *f1.Folder)
+
+	// Verify filtering works end-to-end
+	assert.True(t, cfg.ShouldFilter("task_complete", "", "ClaudeProbe"))
+	assert.True(t, cfg.ShouldFilter("question", "main", "scratch"))
+	assert.False(t, cfg.ShouldFilter("task_complete", "main", "my-project"))
+}

@@ -212,7 +212,15 @@ Edit the config file directly:
     "suppressQuestionAfterAnyNotificationSeconds": 12,
     "notifyOnSubagentStop": false,
     "notifyOnTextResponse": true,
-    "respectJudgeMode": true
+    "respectJudgeMode": true,
+    "suppressFilters": [
+      {
+        "name": "Suppress ClaudeProbe completions (remote-control)",
+        "status": "task_complete",
+        "gitBranch": "",
+        "folder": "ClaudeProbe"
+      }
+    ]
   },
   "statuses": {
     "task_complete": {
@@ -254,6 +262,7 @@ Edit the config file directly:
 | `respectJudgeMode` | `true` | Honor `CLAUDE_HOOK_JUDGE_MODE=true` env var to suppress notifications |
 | `suppressQuestionAfterTaskCompleteSeconds` | `12` | Suppress question notifications for N seconds after task complete |
 | `suppressQuestionAfterAnyNotificationSeconds` | `12` | Suppress question notifications for N seconds after any notification |
+| `suppressFilters` | `[]` | Array of rules to suppress notifications by status, git branch, and/or folder. Each rule is an AND of its fields; omitted fields match any value. Set `gitBranch` to `""` to match sessions outside git repos. |
 
 Each status can be individually disabled by adding `"enabled": false`.
 
