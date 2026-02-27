@@ -22,10 +22,10 @@ type NotificationsConfig struct {
 	Webhook                                     WebhookConfig    `json:"webhook"`
 	SuppressQuestionAfterTaskCompleteSeconds    *int             `json:"suppressQuestionAfterTaskCompleteSeconds"`
 	SuppressQuestionAfterAnyNotificationSeconds *int             `json:"suppressQuestionAfterAnyNotificationSeconds"`
-	NotifyOnSubagentStop                        bool             `json:"notifyOnSubagentStop"`       // Send notifications when subagents (Task tool) complete, default: false
-	SuppressForSubagents                        *bool            `json:"suppressForSubagents"`       // Suppress notifications when transcript_path contains /subagents/, default: true
-	NotifyOnTextResponse                        *bool            `json:"notifyOnTextResponse"`       // Send notifications for text-only responses (no tools), default: true
-	RespectJudgeMode                            *bool            `json:"respectJudgeMode"`           // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
+	NotifyOnSubagentStop                        bool             `json:"notifyOnSubagentStop"`      // Send notifications when subagents (Task tool) complete, default: false
+	SuppressForSubagents                        *bool            `json:"suppressForSubagents"`      // Suppress notifications when transcript_path contains /subagents/, default: true
+	NotifyOnTextResponse                        *bool            `json:"notifyOnTextResponse"`      // Send notifications for text-only responses (no tools), default: true
+	RespectJudgeMode                            *bool            `json:"respectJudgeMode"`          // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
 	SuppressFilters                             []SuppressFilter `json:"suppressFilters,omitempty"` // Rules for suppressing notifications by status/branch/folder
 }
 
