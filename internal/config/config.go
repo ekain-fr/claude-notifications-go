@@ -18,14 +18,15 @@ type Config struct {
 
 // NotificationsConfig represents notification settings
 type NotificationsConfig struct {
-	Desktop                                     DesktopConfig `json:"desktop"`
-	Webhook                                     WebhookConfig `json:"webhook"`
-	SuppressQuestionAfterTaskCompleteSeconds    *int          `json:"suppressQuestionAfterTaskCompleteSeconds"`
-	SuppressQuestionAfterAnyNotificationSeconds *int          `json:"suppressQuestionAfterAnyNotificationSeconds"`
-	NotifyOnSubagentStop                        bool          `json:"notifyOnSubagentStop"` // Send notifications when subagents (Task tool) complete, default: false
-	SuppressForSubagents                        *bool         `json:"suppressForSubagents"` // Suppress notifications when transcript_path contains /subagents/, default: true
-	NotifyOnTextResponse                        *bool         `json:"notifyOnTextResponse"` // Send notifications for text-only responses (no tools), default: true
-	RespectJudgeMode                            *bool         `json:"respectJudgeMode"`     // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
+	Desktop                                     DesktopConfig    `json:"desktop"`
+	Webhook                                     WebhookConfig    `json:"webhook"`
+	SuppressQuestionAfterTaskCompleteSeconds    *int             `json:"suppressQuestionAfterTaskCompleteSeconds"`
+	SuppressQuestionAfterAnyNotificationSeconds *int             `json:"suppressQuestionAfterAnyNotificationSeconds"`
+	NotifyOnSubagentStop                        bool             `json:"notifyOnSubagentStop"`      // Send notifications when subagents (Task tool) complete, default: false
+	SuppressForSubagents                        *bool            `json:"suppressForSubagents"`      // Suppress notifications when transcript_path contains /subagents/, default: true
+	NotifyOnTextResponse                        *bool            `json:"notifyOnTextResponse"`      // Send notifications for text-only responses (no tools), default: true
+	RespectJudgeMode                            *bool            `json:"respectJudgeMode"`          // Honor CLAUDE_HOOK_JUDGE_MODE=true env var to suppress notifications, default: true
+	SuppressFilters                             []SuppressFilter `json:"suppressFilters,omitempty"` // Rules for suppressing notifications by status/branch/folder
 }
 
 // DesktopConfig represents desktop notification settings
@@ -82,8 +83,42 @@ type StatusInfo struct {
 	Sound   string `json:"sound"`
 }
 
+// SuppressFilter defines conditions for suppressing notifications.
+// All specified (non-nil) fields must match for the filter to suppress.
+// Omitted fields act as wildcards (match any value).
+type SuppressFilter struct {
+	Name      string  `json:"name,omitempty"`
+	Status    *string `json:"status,omitempty"`
+	GitBranch *string `json:"gitBranch"` // no omitempty — nil means "any", "" means "no branch"
+	Folder    *string `json:"folder,omitempty"`
+}
+
+// Matches returns true if all specified fields match the given values.
+func (f *SuppressFilter) Matches(status, gitBranch, folder string) bool {
+	if f.Status != nil && *f.Status != status {
+		return false
+	}
+	if f.GitBranch != nil && *f.GitBranch != gitBranch {
+		return false
+	}
+	if f.Folder != nil && *f.Folder != folder {
+		return false
+	}
+	return true
+}
+
+// HasConditions returns true if the filter has at least one condition field set.
+func (f *SuppressFilter) HasConditions() bool {
+	return f.Status != nil || f.GitBranch != nil || f.Folder != nil
+}
+
 // intPtr returns a pointer to the given int value
 func intPtr(v int) *int {
+	return &v
+}
+
+// stringPtr returns a pointer to the given string value
+func stringPtr(v string) *string {
 	return &v
 }
 
@@ -400,6 +435,25 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("suppressQuestionAfterAnyNotificationSeconds must be >= 0")
 	}
 
+	// Validate suppress-filters
+	validStatuses := map[string]bool{
+		"task_complete":         true,
+		"review_complete":       true,
+		"question":              true,
+		"plan_ready":            true,
+		"session_limit_reached": true,
+		"api_error":             true,
+		"api_error_overloaded":  true,
+	}
+	for i, f := range c.Notifications.SuppressFilters {
+		if !f.HasConditions() {
+			return fmt.Errorf("suppressFilters[%d]: must have at least one condition (status, gitBranch, or folder)", i)
+		}
+		if f.Status != nil && !validStatuses[*f.Status] {
+			return fmt.Errorf("suppressFilters[%d]: invalid status %q", i, *f.Status)
+		}
+	}
+
 	return nil
 }
 
@@ -498,4 +552,18 @@ func (c *Config) IsStatusDesktopEnabled(status string) bool {
 // Considers both global webhook.enabled and per-status enabled
 func (c *Config) IsStatusWebhookEnabled(status string) bool {
 	return c.IsWebhookEnabled() && c.IsStatusEnabled(status)
+}
+
+// ShouldFilter returns true if any suppress-filter rule matches the given context.
+// When true, the notification should be suppressed entirely (both desktop and webhook).
+func (c *Config) ShouldFilter(status, gitBranch, folder string) bool {
+	for i := range c.Notifications.SuppressFilters {
+		if !c.Notifications.SuppressFilters[i].HasConditions() {
+			continue
+		}
+		if c.Notifications.SuppressFilters[i].Matches(status, gitBranch, folder) {
+			return true
+		}
+	}
+	return false
 }
