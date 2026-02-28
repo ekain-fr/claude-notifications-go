@@ -1836,3 +1836,99 @@ func TestHandler_MixedStatusEnabled(t *testing.T) {
 		t.Error("expected notification for enabled review_complete")
 	}
 }
+
+// === Tests for suppress-filters ===
+
+func TestHandler_SuppressFilter_MatchingFilter_SkipsNotification(t *testing.T) {
+	folderStatus := "task_complete"
+	folderName := "ClaudeProbe"
+	emptyBranch := ""
+
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop: config.DesktopConfig{Enabled: true},
+			Webhook: config.WebhookConfig{Enabled: true, URL: "http://localhost/test"},
+			SuppressFilters: []config.SuppressFilter{
+				{
+					Name:      "Suppress ClaudeProbe completions",
+					Status:    &folderStatus,
+					GitBranch: &emptyBranch,
+					Folder:    &folderName,
+				},
+			},
+		},
+		Statuses: map[string]config.StatusInfo{
+			"task_complete": {Title: "Task Complete"},
+		},
+	}
+
+	handler, mockNotif, mockWH := newTestHandler(t, cfg)
+
+	// CWD ending with "ClaudeProbe" → folder = "ClaudeProbe"
+	// Git branch will be "" because the temp dir is not a git repo
+	transcriptPath := createTempTranscript(t,
+		buildTranscriptWithTools([]string{"Write"}, 300))
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID:      "test-filter-match-1",
+		TranscriptPath: transcriptPath,
+		CWD:            filepath.Join(t.TempDir(), "ClaudeProbe"),
+	})
+
+	err := handler.HandleHook("Stop", hookData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Both desktop and webhook should be suppressed
+	if mockNotif.wasCalled() {
+		t.Error("expected NO desktop notification when suppress-filter matches")
+	}
+	if mockWH.wasCalled() {
+		t.Error("expected NO webhook notification when suppress-filter matches")
+	}
+}
+
+func TestHandler_SuppressFilter_NonMatchingFilter_SendsNotification(t *testing.T) {
+	folderStatus := "task_complete"
+	emptyBranch := ""
+	folderName := "ClaudeProbe"
+
+	cfg := &config.Config{
+		Notifications: config.NotificationsConfig{
+			Desktop: config.DesktopConfig{Enabled: true},
+			SuppressFilters: []config.SuppressFilter{
+				{
+					Status:    &folderStatus,
+					GitBranch: &emptyBranch,
+					Folder:    &folderName,
+				},
+			},
+		},
+		Statuses: map[string]config.StatusInfo{
+			"task_complete": {Title: "Task Complete"},
+		},
+	}
+
+	handler, mockNotif, _ := newTestHandler(t, cfg)
+
+	// CWD is "my-project" — does NOT match filter folder "ClaudeProbe"
+	transcriptPath := createTempTranscript(t,
+		buildTranscriptWithTools([]string{"Write"}, 300))
+
+	hookData := buildHookDataJSON(HookData{
+		SessionID:      "test-filter-nomatch-1",
+		TranscriptPath: transcriptPath,
+		CWD:            filepath.Join(t.TempDir(), "my-project"),
+	})
+
+	err := handler.HandleHook("Stop", hookData)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should still send because filter doesn't match
+	if !mockNotif.wasCalled() {
+		t.Error("expected notification when suppress-filter does not match")
+	}
+}

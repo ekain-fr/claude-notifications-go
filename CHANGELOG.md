@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0] - 2026-02-27
+
+### Added
+- **Configurable suppress filters** — new `suppressFilters` config array lets users suppress notifications matching specific conditions (status, git branch, folder name). All specified fields in a rule must match (AND logic); omitted fields act as wildcards. Contributed by [@ekain-fr](https://github.com/ekain-fr) ([#40](https://github.com/777genius/claude-notifications-go/pull/40))
+
+### Fixed
+- **Suppress filter check before dedup lock** — moved `ShouldFilter()` before `AcquireLock()` in hook handler to prevent filtered events from consuming dedup lock slots and blocking subsequent legitimate notifications
+
 ## [1.26.0] - 2026-02-24
 
 ### Added
